@@ -28,9 +28,6 @@ public class NadaryaWatsonEstimator extends WindowRegressor {
 		for(int ctr = 0; ctr < input_width; ctr++)
 			h[ctr] = init_bandwidth;
 		
-		w_start = 0;
-		w_end = 0;
-		
 		update_count = 0;
 		
 	}
@@ -55,14 +52,14 @@ public class NadaryaWatsonEstimator extends WindowRegressor {
 	public Prediction predict(double[][] dp) {
 		
 		
-		if(w_start == w_end) return new Prediction();
+		if(!slide && w_start == w_end) return new Prediction();
 		
 		count_dps_in_window(); // this sets n;
 		
 		double denom = 0;
 		double nom = 0;
 		
-		for(int ptr = w_start; ptr != w_end; ptr = (ptr + 1) % w_size) {
+		for(int ptr = w_start, ctr = 0; ctr < n; ptr = (ptr + 1) % w_size, ctr++) {
 			double kernel_measure = kernel_func(dp_window[ptr], dp, h);
 			nom += kernel_measure*responses[ptr];
 			denom += kernel_measure;
@@ -72,7 +69,7 @@ public class NadaryaWatsonEstimator extends WindowRegressor {
 		
 		long temp = 0;
 		
-		for(int ptr = w_start; ptr != w_end; ptr = (ptr + 1) % w_size) {
+		for(int ptr = w_start, ctr = 0; ctr < n; ptr = (ptr + 1) % w_size, ctr++) {
 			long residual;
 		
 			if(fitted[ptr][0] == 0 && fitted[ptr][1] == 0) residual = (long) (responses[ptr]*10000);
@@ -94,7 +91,9 @@ public class NadaryaWatsonEstimator extends WindowRegressor {
 	@Override
 	public void update(double[][] dp, double y, Prediction prediction) {
 		
-		if((w_end + 1) % w_size == w_start) {
+		count_dps_in_window(); // this sets n;
+		
+		if(slide) {
 			
 			// window is full
 			// replace the element w_start points with the new element
@@ -112,7 +111,7 @@ public class NadaryaWatsonEstimator extends WindowRegressor {
 				dp_window[w_end][ctr][0] = dp[ctr][0];
 			}
 			
-			for(int ptr = w_start; ptr != w_end; ptr = (ptr + 1) % w_size) {
+			for(int ptr = w_start, ctr = 0; ctr < n; ptr = (ptr + 1) % w_size, ctr++) {
 				double kernel_measure = kernel_func(dp_window[w_end], dp_window[ptr], h); 
 				fitted[ptr][1] += kernel_measure;
 				fitted[ptr][0] += kernel_measure*y;
@@ -135,7 +134,7 @@ public class NadaryaWatsonEstimator extends WindowRegressor {
 				dp_window[w_end][ctr][0] = dp[ctr][0];
 			}
 			
-			for(int ptr = w_start; ptr != w_end; ptr = (ptr + 1) % w_size) {
+			for(int ptr = w_start, ctr = 0; ctr < n; ptr = (ptr + 1) % w_size, ctr++) {
 				double kernel_measure = kernel_func(dp_window[w_end], dp_window[ptr], h); 
 				fitted[ptr][1] += kernel_measure;
 				fitted[ptr][0] += kernel_measure*y;
@@ -149,6 +148,8 @@ public class NadaryaWatsonEstimator extends WindowRegressor {
 			fitted[w_end][1] = prediction.opt2 + kernel_measure;
 			
 			w_end = (w_end + 1) % w_size;
+			
+			if(w_end == w_start) slide = true;
 			
 		}
 		
@@ -171,7 +172,7 @@ public class NadaryaWatsonEstimator extends WindowRegressor {
 		double[] var = new double[feature_count];
 		double[] mean = new double[feature_count];
 		
-		for(int ptr = w_start; ptr != w_end; ptr = (ptr + 1) % w_size) {
+		for(int ptr = w_start, ctr = 0; ctr < n; ptr = (ptr + 1) % w_size, ctr++) {
 			for(int ctr2 = 0; ctr2 < feature_count; ctr2++) {
 				mean[ctr2] += dp_window[ptr][ctr2][0];
 			}
@@ -185,7 +186,7 @@ public class NadaryaWatsonEstimator extends WindowRegressor {
 			var[ctr2] = 0;
 		}
 		
-		for(int ptr = w_start; ptr != w_end; ptr = (ptr + 1) % w_size) {
+		for(int ptr = w_start, ctr = 0; ctr < n; ptr = (ptr + 1) % w_size, ctr++) {
 			for(int ctr2 = 0; ctr2 < feature_count; ctr2++) {
 				var[ctr2] += Math.pow((dp_window[ptr][ctr2][0] - mean[ctr2]), 2);
 			}
@@ -230,12 +231,12 @@ public class NadaryaWatsonEstimator extends WindowRegressor {
 		
 		long rss = 0;
 		
-		for(int ptr = w_start; ptr != w_end; ptr = (ptr + 1) % w_size) {
+		for(int ptr = w_start, ctr = 0; ctr < n; ptr = (ptr + 1) % w_size, ctr++) {
 			
 			double denom = 0;
 			double nom = 0;
 			
-			for(int ptr2 = w_start; ptr2 != w_end; ptr2 = (ptr2 + 1) % w_size) {
+			for(int ptr2 = w_start, ctr2 = 0; ctr2 < n; ptr2 = (ptr2 + 1) % w_size, ctr2++) {
 				if(ptr == ptr2) continue;
 				
 				double kernel_measure = kernel_func(dp_window[ptr], dp_window[ptr2], experimental_bandwidth_array);

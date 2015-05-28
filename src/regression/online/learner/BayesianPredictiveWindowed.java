@@ -69,7 +69,7 @@ public class BayesianPredictiveWindowed extends WindowRegressor {
 		
 		mul1 = MatrixOp.mat_add(mul1, MatrixOp.scalarmult(nom1, -1/denom));
 		
-		if((w_end + 1) % w_size == w_start) {
+		if(slide) {
 			
 			// update mul2
 			
@@ -111,6 +111,7 @@ public class BayesianPredictiveWindowed extends WindowRegressor {
 			
 			w_end = (w_end + 1) % w_size;
 			
+			if(w_end == w_start) slide = true;
 		}
 		
 	}

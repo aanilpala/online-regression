@@ -61,7 +61,10 @@ public class GPWindowed extends WindowRegressor {
 		double[][] spare_column = new double[w_size-1][1];
 		double spare_var;
 		
-		
+		System.out.println("pre-update");
+		MatrixPrinter.print_matrix(k);
+		System.out.println("pre-update_inv");
+		MatrixPrinter.print_matrix(k_inv);
 		
 		// shrinking
 		// obtaining k_minus_hat
@@ -83,15 +86,30 @@ public class GPWindowed extends WindowRegressor {
 		
 		shrunk_inv = MatrixOp.mat_add(shrunk_inv, MatrixOp.scalarmult(MatrixOp.mult(spare_column, MatrixOp.transpose(spare_column)), -1.0/spare_var));
 		
+		System.out.println("shrunk");
+		MatrixPrinter.print_matrix(shrunk);
+		System.out.println("shrunk-inv");
+		MatrixPrinter.print_matrix(shrunk_inv);
+		
 		// expanding
 		// obtaining (new) k
 		
 		count_dps_in_window();
 		
-		for(int ctr = 1; ctr < w_size; ctr++) {
-			int effective_index = (w_start + ctr) % w_size;
-			if(n+1 != w_size && n < w_size - effective_index) spare_column[ctr-1][0] = 0;
-			else spare_column[ctr-1][0] = kernel_func(dp_window[effective_index], dp);
+		if(slide) {
+			for(int ctr = 1; ctr < w_size; ctr++) {
+				spare_column[ctr-1][0] = kernel_func(dp_window[(w_start + ctr) % w_size], dp);
+			}
+		}
+		else {
+			int ptr = w_end;
+			for(int ctr = 0; ctr < n; ptr--,  ctr++) {
+				System.out.println(w_size - w_end + ctr - 1 + "-" + (w_end - ctr - 1));
+				spare_column[w_size - w_end + ctr - 1][0] = kernel_func(dp_window[w_end - ctr - 1], dp);
+			}
+//			for(; ptr > 0; ptr--) {
+//				spare_column[w_size - ptr][0] = 0;
+//			}
 		}
 		
 		for(int ctr = 1; ctr < w_size; ctr++) {
@@ -101,8 +119,8 @@ public class GPWindowed extends WindowRegressor {
 		}
 		
 		for(int ctr = 1; ctr < w_size; ctr++) {
-			k[ctr][w_size-1] = spare_column[ctr-1][0];
-			k[w_size-1][ctr] = spare_column[ctr-1][0];
+			k[ctr-1][w_size-1] = spare_column[ctr-1][0];
+			k[w_size-1][ctr-1] = spare_column[ctr-1][0];
 		}
 		
 		spare_var = kernel_func(dp, dp) + 1/a;
@@ -124,8 +142,8 @@ public class GPWindowed extends WindowRegressor {
 		}
 		
 		for(int ctr = 1; ctr < w_size; ctr++) {
-			k_inv[ctr][w_size-1] = spare_column[ctr-1][0];
-			k_inv[w_size-1][ctr] = spare_column[ctr-1][0];
+			k_inv[ctr-1][w_size-1] = spare_column[ctr-1][0];
+			k_inv[w_size-1][ctr-1] = spare_column[ctr-1][0];
 		}
 		
 		k_inv[w_size-1][w_size-1] = spare_var;
@@ -136,21 +154,25 @@ public class GPWindowed extends WindowRegressor {
 			dp_window[w_end][ctr][0] = dp[ctr][0];
 		}
 		
-		if((w_end + 1) % w_size == w_start) {
+		if(slide) {
 			responses[w_end] = y;
 			
 			w_start = (w_start + 1) % w_size;
 			w_end = (w_end + 1) % w_size;
 		}
-		else w_end = (w_end + 1) % w_size;
+		else {
+			w_end = (w_end + 1) % w_size;
+			
+			if(w_start == w_end) slide = true;
+		}
 		
 		
+		System.out.println("post-update");
 		MatrixPrinter.print_matrix(k);
-		MatrixPrinter.print_matrix(k_inv);
+		System.out.println("post-update_inv");
+		MatrixPrinter.print_matrix(k_inv);		
 		
-		
-		
-		
+		System.out.println("--------------------------------");
 	}
 
 	private static double kernel_func(double[][] dp1, double dp2[][]) {

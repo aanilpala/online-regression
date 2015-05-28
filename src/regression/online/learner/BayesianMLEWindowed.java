@@ -72,7 +72,7 @@ public class BayesianMLEWindowed extends WindowRegressor {
 		
 		// slide the window
 		
-		if((w_end + 1) % w_size == w_start) {
+		if(slide) {
 			
 			// update mul2
 			
@@ -116,12 +116,14 @@ public class BayesianMLEWindowed extends WindowRegressor {
 			
 			w_end = (w_end + 1) % w_size;
 			
+			if(w_end == w_start) slide = true;
+			
 		}
 		
 		count_dps_in_window(); // this sets n;
 		long squared_res_sum = 0;
 		
-		for(int ptr = w_start; ptr != w_end; ptr = (ptr + 1) % w_size)
+		for(int ptr = w_start, ctr = 0; ctr < n; ptr = (ptr + 1) % w_size, ctr++)
 			squared_res_sum = (long) Math.pow((responses[ptr] - MatrixOp.mult(MatrixOp.transpose(dp), params)[0][0])*10000, 2);
 		
 		running_residual_variance = squared_res_sum / 100000000.0*(n - feature_count);
