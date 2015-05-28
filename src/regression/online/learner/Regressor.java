@@ -22,6 +22,7 @@ public abstract class Regressor {
 			this.feature_count = input_width;
 		}
 	}
+	
 	public Prediction predict(double[][] dp) { return null; };
 	public void update(double[][] dp, double y, Prediction prediction) {};
 	

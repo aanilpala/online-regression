@@ -23,6 +23,24 @@ public class MatrixOp {
 		
 	}
 	
+	public static double[][] identitiy_add(double m1[][], double coeff){
+		
+		if(m1[0].length != m1.length) {
+			return null;
+		}
+		
+		int num_col = m1[0].length;
+		int num_row = m1.length;
+		
+		double[][] ans = new double[num_row][num_col]; 
+		
+		for(int ctr = 0; ctr < num_row; ctr++) {
+			ans[ctr][ctr] += coeff; 
+		}
+		
+		return ans;
+	}
+	
 	public static double[][] scalarmult(double[][] m, double coeff) {
 		
 		int num_col = m[0].length;

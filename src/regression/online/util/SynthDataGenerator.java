@@ -67,13 +67,13 @@ public class SynthDataGenerator {
 		
 		BufferedWriter writer = null;
 		try {
-			writer = new BufferedWriter(new FileWriter(new File("/Users/anilpa/Desktop/opdata/fakeOpData.csv"), false));
+			writer = new BufferedWriter(new FileWriter(new File("./data/fakeOpData.csv"), false));
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		
-		SynthDataGenerator sgen = new SynthDataGenerator(writer, 4, 500);
+		SynthDataGenerator sgen = new SynthDataGenerator(writer, 4, 20);
 		try {
 			sgen.generate();
 		} catch (IOException e) {

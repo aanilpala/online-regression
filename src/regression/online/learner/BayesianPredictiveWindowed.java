@@ -45,7 +45,7 @@ public class BayesianPredictiveWindowed extends WindowRegressor {
 		
 		double pp = MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(dp), mul1), mul2)[0][0];
 		
-		double pred_variance = MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(dp), mul1), dp)[0][0]; 
+		double pred_variance = MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(dp), MatrixOp.scalarmult(mul1, 1/a)), dp)[0][0]; 
 		
 		return new Prediction(pp, pp + 1.96*(Math.sqrt(pred_variance)), pp - 1.96*(Math.sqrt(pred_variance)));
 		

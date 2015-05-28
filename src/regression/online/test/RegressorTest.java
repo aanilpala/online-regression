@@ -16,6 +16,7 @@ import regression.online.learner.BayesianPredictive;
 import regression.online.learner.BayesianMAPWindowed;
 import regression.online.learner.BayesianMLEWindowed;
 import regression.online.learner.BayesianPredictiveWindowed;
+import regression.online.learner.GPWindowed;
 import regression.online.learner.NadaryaWatsonEstimator;
 import regression.online.learner.Regressor;
 import regression.online.model.Prediction;
@@ -51,7 +52,7 @@ public class RegressorTest {
 		FileWriter fw = null;
 		if(dump_logs) {
 			try {
-				fw = new FileWriter("/Users/anilpa/Desktop/tb_output/" + this.reg.name + "_logs.txt");
+				fw = new FileWriter("./data/logs/" + this.reg.name + "_logs.txt");
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
@@ -82,15 +83,16 @@ public class RegressorTest {
 		rmse = Math.sqrt(accumulated_squared_error/(100000.0*100000.0));
 		interval_containment_rate = containment_count / (double) (data_points.size() - 5);
 		
-		try {
-			fw.write("SUMMARY\n");
-			fw.write("RMSE = " + rmse + " Interval Containment Ratio = " + interval_containment_rate);
-			fw.flush();
-			fw.close();
-		} catch (IOException e) {
-			e.printStackTrace();
+		if(dump_logs) {
+			try {
+				fw.write("SUMMARY\n");
+				fw.write("RMSE = " + rmse + " Interval Containment Ratio = " + interval_containment_rate);
+				fw.flush();
+				fw.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
-		
 	}
 	
 	public double getRMSE(){
@@ -113,7 +115,7 @@ public class RegressorTest {
 		List<Regressor> regs = new ArrayList<Regressor>();
 		List<RegressorTest> reg_testers = new ArrayList<RegressorTest>();
  		
-		try(BufferedReader br = new BufferedReader(new FileReader("/Users/anilpa/Desktop/opdata/lfakeOpData.csv"))) {
+		try(BufferedReader br = new BufferedReader(new FileReader("./data/fakeOpData.csv"))) {
 		    for(String line; (line = br.readLine()) != null; ) {
 		    	
 		    	String[] tokens = line.split("\\|");
@@ -150,8 +152,8 @@ public class RegressorTest {
 //		regs.add(new BayesianMAP(input_width, true, 15, 10));
 //		regs.add(new BayesianMAPWindowed(input_width, false, 15, 10));
 //		regs.add(new BayesianMAPWindowed(input_width, true, 15, 10));
-		regs.add(new BayesianMAPForgetting(input_width, false, 15, 10));
-		regs.add(new BayesianMAPForgetting(input_width, true, 15, 10));
+//		regs.add(new BayesianMAPForgetting(input_width, false, 15, 10));
+//		regs.add(new BayesianMAPForgetting(input_width, true, 15, 10));
 //		
 //		regs.add(new BayesianPredictive(input_width, false, 15, 10));
 //		regs.add(new BayesianPredictive(input_width, true, 15, 10));
@@ -160,11 +162,13 @@ public class RegressorTest {
 //		
 //		regs.add(new NadaryaWatsonEstimator(input_width));
 		
+		regs.add(new GPWindowed(input_width, 10, 10));
+		
 		for(Regressor each : regs)
 			reg_testers.add(new RegressorTest(each, data_points, responses));
 
 		for(RegressorTest each : reg_testers) {
-			each.test(true);
+			each.test(false);
 			System.out.println(each.getRegName() + " RMSE= " + each.getRMSE() + " IContainment: " + each.getContainmentRate());
 		}
 		
