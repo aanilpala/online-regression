@@ -76,7 +76,7 @@ public class BayesianMLEWindowed extends WindowRegressor {
 			
 			// update mul2
 			
-			mul2 = MatrixOp.mat_add(mul2, MatrixOp.scalarmult(dp_window[w_start], -1*responses[w_start]));
+			mul2 = MatrixOp.mat_add(mul2, MatrixOp.scalarmult(dp_window[w_start], -1*responses[w_start][0]));
 			
 			// rank-1 downdate mul1 (inverse of X'X^-1)
 			
@@ -98,7 +98,7 @@ public class BayesianMLEWindowed extends WindowRegressor {
 				dp_window[w_end][ctr][0] = dp[ctr][0];
 			}
 			
-			responses[w_end] = y;
+			responses[w_end][0] = y;
 			
 			w_start = (w_start + 1) % w_size;
 			w_end = (w_end + 1) % w_size;
@@ -112,7 +112,7 @@ public class BayesianMLEWindowed extends WindowRegressor {
 				dp_window[w_end][ctr][0] = dp[ctr][0];
 			}
 			
-			responses[w_end] = y;
+			responses[w_end][0] = y;
 			
 			w_end = (w_end + 1) % w_size;
 			
@@ -124,7 +124,7 @@ public class BayesianMLEWindowed extends WindowRegressor {
 		long squared_res_sum = 0;
 		
 		for(int ptr = w_start, ctr = 0; ctr < n; ptr = (ptr + 1) % w_size, ctr++)
-			squared_res_sum = (long) Math.pow((responses[ptr] - MatrixOp.mult(MatrixOp.transpose(dp), params)[0][0])*10000, 2);
+			squared_res_sum = (long) Math.pow((responses[ptr][0] - MatrixOp.mult(MatrixOp.transpose(dp), params)[0][0])*10000, 2);
 		
 		running_residual_variance = squared_res_sum / 100000000.0*(n - feature_count);
 		

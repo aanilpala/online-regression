@@ -61,7 +61,7 @@ public class NadaryaWatsonEstimator extends WindowRegressor {
 		
 		for(int ptr = w_start, ctr = 0; ctr < n; ptr = (ptr + 1) % w_size, ctr++) {
 			double kernel_measure = kernel_func(dp_window[ptr], dp, h);
-			nom += kernel_measure*responses[ptr];
+			nom += kernel_measure*responses[ptr][0];
 			denom += kernel_measure;
 		}
 		
@@ -72,8 +72,8 @@ public class NadaryaWatsonEstimator extends WindowRegressor {
 		for(int ptr = w_start, ctr = 0; ctr < n; ptr = (ptr + 1) % w_size, ctr++) {
 			long residual;
 		
-			if(fitted[ptr][0] == 0 && fitted[ptr][1] == 0) residual = (long) (responses[ptr]*10000);
-			else residual = (long) ((responses[ptr] - (fitted[ptr][0]/fitted[ptr][1]))*10000);
+			if(fitted[ptr][0] == 0 && fitted[ptr][1] == 0) residual = (long) (responses[ptr][0]*10000);
+			else residual = (long) ((responses[ptr][0] - (fitted[ptr][0]/fitted[ptr][1]))*10000);
 			
 			//System.out.println(fitted[ptr][0] + "-" + fitted[ptr][1]/fitted[ptr][2] + "=" + fitted[ptr][1] + "/" + fitted[ptr][2]);
 			
@@ -104,7 +104,7 @@ public class NadaryaWatsonEstimator extends WindowRegressor {
 			for(int ptr = w_start; ptr != w_end; ptr = (ptr + 1) % w_size) {
 				double kernel_measure = kernel_func(to_remove, dp_window[ptr], h); 
 				fitted[ptr][1] -= kernel_measure;
-				fitted[ptr][0] -= kernel_measure*responses[w_start];
+				fitted[ptr][0] -= kernel_measure*responses[w_start][0];
 			}
 			
 			for(int ctr = 0; ctr < feature_count; ctr++) {
@@ -120,7 +120,7 @@ public class NadaryaWatsonEstimator extends WindowRegressor {
 			// adding the effect of itself on the estimation! (next time for an identical dp, this data point will be utilized so residuals should be computed taking this fact into account)
 			double kernel_measure = kernel_func(dp_window[w_end], dp_window[w_end], h); 
 			
-			responses[w_end] = y;
+			responses[w_end][0] = y;
 			fitted[w_end][0] = prediction.opt1 + kernel_measure*y;
 			fitted[w_end][1] = prediction.opt2 + kernel_measure;
 			
@@ -143,7 +143,7 @@ public class NadaryaWatsonEstimator extends WindowRegressor {
 			// adding the effect of itself on the estimation! (next time for an identical dp, this data point will be utilized so residuals should be computed taking this fact into account)
 			double kernel_measure = kernel_func(dp_window[w_end], dp_window[w_end], h); 
 			
-			responses[w_end] = y;
+			responses[w_end][0] = y;
 			fitted[w_end][0] = prediction.opt1 + kernel_measure*y;
 			fitted[w_end][1] = prediction.opt2 + kernel_measure;
 			
@@ -241,12 +241,12 @@ public class NadaryaWatsonEstimator extends WindowRegressor {
 				
 				double kernel_measure = kernel_func(dp_window[ptr], dp_window[ptr2], experimental_bandwidth_array);
 				
-				nom += kernel_measure*responses[ptr2];
+				nom += kernel_measure*responses[ptr2][0];
 				denom += kernel_measure;
 				
 			}
 			
-			double residual = (nom/denom - responses[ptr])*1000;
+			double residual = (nom/denom - responses[ptr][0])*1000;
 			rss += residual*residual;
 		}
 		

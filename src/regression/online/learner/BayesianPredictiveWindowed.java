@@ -73,7 +73,7 @@ public class BayesianPredictiveWindowed extends WindowRegressor {
 			
 			// update mul2
 			
-			mul2 = MatrixOp.mat_add(mul2, MatrixOp.scalarmult(dp_window[w_start], -1*responses[w_start]));
+			mul2 = MatrixOp.mat_add(mul2, MatrixOp.scalarmult(dp_window[w_start], -1*responses[w_start][0]));
 			
 			// rank-1 downdate mul1 (inverse of X'X^-1)
 			
@@ -93,7 +93,7 @@ public class BayesianPredictiveWindowed extends WindowRegressor {
 				dp_window[w_end][ctr][0] = dp[ctr][0];
 			}
 			
-			responses[w_end] = y;
+			responses[w_end][0] = y;
 			
 			w_start = (w_start + 1) % w_size;
 			w_end = (w_end + 1) % w_size;
@@ -107,7 +107,7 @@ public class BayesianPredictiveWindowed extends WindowRegressor {
 				dp_window[w_end][ctr][0] = dp[ctr][0];
 			}
 			
-			responses[w_end] = y;
+			responses[w_end][0] = y;
 			
 			w_end = (w_end + 1) % w_size;
 			

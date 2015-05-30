@@ -162,13 +162,13 @@ public class RegressorTest {
 //		
 //		regs.add(new NadaryaWatsonEstimator(input_width));
 		
-		regs.add(new GPWindowed(input_width, 10, 10));
+		regs.add(new GPWindowed(input_width, 1, 1250, 15000));
 		
 		for(Regressor each : regs)
 			reg_testers.add(new RegressorTest(each, data_points, responses));
 
 		for(RegressorTest each : reg_testers) {
-			each.test(false);
+			each.test(true);
 			System.out.println(each.getRegName() + " RMSE= " + each.getRMSE() + " IContainment: " + each.getContainmentRate());
 		}
 		

@@ -27,7 +27,8 @@ public class SynthDataGenerator {
 		params = new double[feature_count];
 		
 		for(int ctr = 0; ctr < feature_count; ctr++) {
-			params[ctr] = rand.nextDouble()*100;
+			int sign = rand.nextBoolean() ? 1 : -1;
+			params[ctr] = rand.nextDouble()*100*sign;
 		}
 		
 		exp_vars = new double[feature_count];
@@ -42,11 +43,12 @@ public class SynthDataGenerator {
 			
 			for(int ctr2 = 0; ctr2 < feature_count; ctr2++) {
 				
-				exp_vars[ctr2] = Math.abs(rand.nextDouble()*100);
+				int sign = rand.nextBoolean() ? 1 : -1;
+				exp_vars[ctr2] = sign*rand.nextDouble()*100;
 				writer.append(((Double) exp_vars[ctr2]).toString() + "\t");
 				
 				
-				target += exp_vars[ctr2]*Math.log(exp_vars[ctr2])*params[ctr2];
+				target += exp_vars[ctr2]*params[ctr2] + exp_vars[ctr2]*exp_vars[ctr2]*exp_vars[ctr2]*params[ctr2];
 			}
 			
 			if(rand.nextBoolean()) target += rand.nextGaussian()*noise_var;
@@ -73,7 +75,7 @@ public class SynthDataGenerator {
 			e.printStackTrace();
 		}
 		
-		SynthDataGenerator sgen = new SynthDataGenerator(writer, 4, 20);
+		SynthDataGenerator sgen = new SynthDataGenerator(writer, 4, 1000);
 		try {
 			sgen.generate();
 		} catch (IOException e) {

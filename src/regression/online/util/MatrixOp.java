@@ -35,7 +35,10 @@ public class MatrixOp {
 		double[][] ans = new double[num_row][num_col]; 
 		
 		for(int ctr = 0; ctr < num_row; ctr++) {
-			ans[ctr][ctr] += coeff; 
+			for(int ctr2 = 0; ctr2 < num_col; ctr2++) {
+				if(ctr == ctr2) ans[ctr][ctr2] = m1[ctr][ctr2] + coeff;
+				else ans[ctr][ctr2] = m1[ctr][ctr2];
+			} 
 		}
 		
 		return ans;
