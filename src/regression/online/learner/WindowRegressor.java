@@ -8,6 +8,7 @@ public abstract class WindowRegressor extends Regressor {
 	double[][][] dp_window;
 	double[][] responses;
 	boolean slide;
+	int update_count;
 	
 	public void count_dps_in_window() {
 		if(slide) n = w_size;
@@ -24,6 +25,7 @@ public abstract class WindowRegressor extends Regressor {
 		slide = false;
 		w_start = 0;
 		w_end = 0;
+		update_count = 0;
 	}
 	
 	

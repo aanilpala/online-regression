@@ -11,8 +11,6 @@ public class NadaryaWatsonEstimator extends WindowRegressor {
 	
 	int hyper_param_tuning_freq = 1000;
 	
-	int update_count;
-	
 	double[][] fitted;
 	
 	public NadaryaWatsonEstimator(int input_width) {
@@ -27,8 +25,6 @@ public class NadaryaWatsonEstimator extends WindowRegressor {
 		
 		for(int ctr = 0; ctr < input_width; ctr++)
 			h[ctr] = init_bandwidth;
-		
-		update_count = 0;
 		
 	}
 

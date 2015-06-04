@@ -15,7 +15,7 @@ public class SynthDataGenerator {
 	double[] params;
 	double[] exp_vars;
 	double target;
-	double noise_var = 1.0;
+	double noise_var = 10.0;
 	
 	public SynthDataGenerator(BufferedWriter writer, int feature_count, int instance_count) {
 		
@@ -27,7 +27,7 @@ public class SynthDataGenerator {
 		params = new double[feature_count];
 		
 		for(int ctr = 0; ctr < feature_count; ctr++) {
-			int sign = rand.nextBoolean() ? 1 : -1;
+			int sign = 1;//rand.nextBoolean() ? 1 : -1;
 			params[ctr] = rand.nextDouble()*100*sign;
 		}
 		
@@ -43,12 +43,12 @@ public class SynthDataGenerator {
 			
 			for(int ctr2 = 0; ctr2 < feature_count; ctr2++) {
 				
-				int sign = rand.nextBoolean() ? 1 : -1;
+				int sign = 1;//rand.nextBoolean() ? 1 : -1;
 				exp_vars[ctr2] = sign*rand.nextDouble()*100;
 				writer.append(((Double) exp_vars[ctr2]).toString() + "\t");
 				
 				
-				target += exp_vars[ctr2]*params[ctr2] + exp_vars[ctr2]*exp_vars[ctr2]*exp_vars[ctr2]*params[ctr2];
+				target += exp_vars[ctr2]*params[ctr2] + Math.sqrt(exp_vars[ctr2]);
 			}
 			
 			if(rand.nextBoolean()) target += rand.nextGaussian()*noise_var;

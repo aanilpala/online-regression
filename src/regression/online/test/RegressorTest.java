@@ -17,6 +17,7 @@ import regression.online.learner.BayesianMAPWindowed;
 import regression.online.learner.BayesianMLEWindowed;
 import regression.online.learner.BayesianPredictiveWindowed;
 import regression.online.learner.GPWindowed;
+import regression.online.learner.GPWindowedHPTuningSGD;
 import regression.online.learner.NadaryaWatsonEstimator;
 import regression.online.learner.Regressor;
 import regression.online.model.Prediction;
@@ -62,8 +63,14 @@ public class RegressorTest {
 			double[][] dp = data_points.get(ctr);
 			Double response = responses.get(ctr);
 			
-			Prediction pred = reg.predict(dp);
-			reg.update(dp, response, pred);
+			Prediction pred = null;
+			try {
+				pred = reg.predict(dp);
+				reg.update(dp, response, pred);
+			} 
+			catch (Exception e1) {
+				e1.printStackTrace();
+			}
 			
 			if(ctr > 5) {
 				accumulated_squared_error += Math.pow((pred.point_prediction - response)*100000, 2);
@@ -162,7 +169,9 @@ public class RegressorTest {
 //		
 //		regs.add(new NadaryaWatsonEstimator(input_width));
 		
-		regs.add(new GPWindowed(input_width, 1, 1250, 15000));
+//		regs.add(new GPWindowed(input_width, 1, 1250));
+		
+		regs.add(new GPWindowedHPTuningSGD(input_width, 1, 1));
 		
 		for(Regressor each : regs)
 			reg_testers.add(new RegressorTest(each, data_points, responses));

@@ -36,7 +36,7 @@ public class BayesianMLEForgetting extends Regressor {
 		
 	}
 	
-	public Prediction predict(double[][] dp) {
+	public Prediction predict(double[][] dp) throws Exception {
 		
 		if(map2fs) dp = nlinmap.map(dp);
 		
@@ -53,7 +53,7 @@ public class BayesianMLEForgetting extends Regressor {
 		
 	}
 	
-	public void update(double[][] dp, double y, Prediction prediction) {
+	public void update(double[][] dp, double y, Prediction prediction) throws Exception {
 		
 		if(map2fs) dp = nlinmap.map(dp);
 		

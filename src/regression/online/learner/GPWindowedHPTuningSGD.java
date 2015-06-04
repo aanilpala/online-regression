@@ -7,7 +7,7 @@ import regression.online.model.Prediction;
 import regression.online.util.MatrixOp;
 import regression.online.util.MatrixPrinter;
 
-public class GPWindowed extends WindowRegressor {
+public class GPWindowedHPTuningSGD extends WindowRegressor {
 
 	double[][] k; // gram matrix
 	double[][] k_inv; // inverse gram matrix	
@@ -18,8 +18,10 @@ public class GPWindowed extends WindowRegressor {
 	double[] l; // length-scale array;
 	
 	double init_length_scale = 10000;
+	//double hyperparam_learning_rate = 0.000001;
+	double hyper_param_update_freq = w_size;
 	
-	public GPWindowed(int input_width, double signal_stddev, double weight_stddev) {
+	public GPWindowedHPTuningSGD(int input_width, double signal_stddev, double weight_stddev) {
 		super(false, input_width);
 		
 		name = "GPWindowed";
@@ -137,7 +139,7 @@ public class GPWindowed extends WindowRegressor {
 			k[w_size-1][ctr-1] = spare_column[ctr-1][0];
 		}
 		
-		spare_var = kernel_func(dp, dp) + 1/a;
+		spare_var = kernel_func(dp, dp);
 		k[w_size-1][w_size-1] = spare_var;
 		
 		// computing new k_inv
@@ -160,7 +162,6 @@ public class GPWindowed extends WindowRegressor {
 		}
 		
 		k_inv[w_size-1][w_size-1] = spare_var;
-	
 		
 		// sliding the dp_window
 		
@@ -180,20 +181,133 @@ public class GPWindowed extends WindowRegressor {
 			if(w_start == w_end) slide = true;
 		}
 		
-		
 //		System.out.println("post-update");
 //		MatrixPrinter.print_matrix(k);
 //		System.out.println("post-update_inv");
 //		MatrixPrinter.print_matrix(k_inv);		
 //		
 //		System.out.println("--------------------------------");
-//		
+		
 //		try {
 //			System.in.read();
 //		} catch (IOException e) {
 //			// TODO Auto-generated catch block
 //			e.printStackTrace();
 //		}
+		
+		update_count++;
+		
+		if(slide && ((update_count - w_size) % hyper_param_update_freq == 0)) 
+			update_hyperparams();
+	}
+
+	private void update_hyperparams() throws Exception {
+		
+		// we have a, b and length-scales as hyperparams to tune
+		
+		System.out.println("pre-tuning b: " + b);
+		
+		count_dps_in_window();
+		
+		double[][] derivative_cov_matrix = new double[w_size][w_size];
+		double[][] y = new double[w_size][1];
+		double gradient;
+		
+		// creating y vector
+		
+		if(slide) {
+			for(int ctr = 0; ctr < w_size; ctr++)
+				y[ctr][0] = responses[(w_start + ctr) % w_size][0];
+		}
+		else {
+			int ctr = 0;
+			for(; ctr < n; ctr++) {
+				y[w_size - 1 - ctr][0] = responses[w_end - 1 - ctr][0];
+			}
+			for(; ctr < w_size - 1; ctr++) {
+				y[w_size - 1 - ctr][0] = 0;
+			}
+		}
+		
+		// gradient ascent
+		
+		double sigma_w = Math.sqrt(1/b);
+		double delta = Double.MAX_VALUE;
+		double min_delta = 0.01;
+		double step_size = 0.1;
+		double accelerator = 1.25;
+		double decay = 0.8;
+		int sign = 0;
+		
+		System.out.println("tuning...");
+		
+		//while(learning_rate > 0 && delta > min_delta) {
+		while(true) {
+			double old_sigma_w = sigma_w;
+			
+			for(int ctr = 0; ctr < w_size; ctr++) {
+				for(int ctr2 = 0; ctr2 < w_size; ctr2++) {
+					if(ctr == ctr2) derivative_cov_matrix[ctr][ctr2] = 2*sigma_w; 
+					else derivative_cov_matrix[ctr][ctr2] = k[ctr][ctr2]*2/sigma_w;
+				}
+			}
+			
+//			double gradient_1 = -0.5*MatrixOp.trace(MatrixOp.mult(k_inv, derivative_cov_matrix));
+//			double gradient_2 = 0.5*MatrixOp.mult(MatrixOp.mult(MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(y), k_inv), derivative_cov_matrix), k_inv), y)[0][0];
+//			double gradient_3 = 0;//-1/sigma_w; 
+//			double gradient_test = gradient_1 + gradient_2 + gradient_3;
+			
+			double[][] alpha = MatrixOp.mult(k_inv, y);
+			gradient = 0.5*MatrixOp.trace(MatrixOp.mult(MatrixOp.mat_subtract(MatrixOp.mult(alpha, MatrixOp.transpose(alpha)), k_inv), derivative_cov_matrix)); // - 10/sigma_w;
+			
+			
+			
+			sigma_w += step_size*gradient;
+			b = 1/(sigma_w*sigma_w);
+			
+			if(sign == 0) sign = (int) Math.signum(gradient);
+			else {
+				sign *= (int) Math.signum(gradient);
+				if(sign >= 1) {
+					step_size *= accelerator;
+					sign = 0;
+				}
+				else {
+					step_size *= decay;
+					sign = 0;
+				}
+			}
+			
+			delta = Math.abs(sigma_w - old_sigma_w);
+			
+			//System.out.println(gradient + " / " + sigma_w);
+			//System.out.println(gradient_test);
+			
+			//recomputing covariance matrix and its inverse
+			//assuming sliding is already enabled
+			for(int ctr = 0; slide && ctr < w_size; ctr++) {
+				for(int ctr2 = 0; ctr2 < w_size; ctr2++) {
+					k[ctr][ctr2] = kernel_func(dp_window[(w_start+ctr) % w_size], dp_window[(w_start+ctr2) % w_size]);
+				}
+			}
+			
+			k_inv = MatrixOp.fast_invert_psd(k);
+			
+			if(Math.abs(gradient) < 0.001) {
+				System.out.println(gradient);
+				break; 
+			}
+		}
+		
+		System.out.println("post-tuning b: " + b);
+		System.out.println("-------------------------");
+		
+//		try {
+//			System.in.read();
+//		} catch (IOException e) {
+//			e.printStackTrace();
+//		}
+
 	}
 
 	private double kernel_func(double[][] dp1, double dp2[][]) {
@@ -219,7 +333,8 @@ public class GPWindowed extends WindowRegressor {
 				sum += dif*dif/l[ctr];
 			}
 			
-			kernel_measure = Math.pow(Math.E, -0.5*sum)/b;
+			if(sum == 0) kernel_measure = 1/b + 1/a;
+			else kernel_measure = Math.pow(Math.E, -0.5*sum)/b;
 		}
 		
 		return kernel_measure;
