@@ -28,6 +28,15 @@ public class Prediction {
 		this.opt2 = opt2;
 	}
 
+	public Prediction(double y, double predictive_deviance) throws Exception {
+		if(predictive_deviance < 0) throw new Exception("NEGATIVE PREDICTIVE VARIANCE! THIS SHOULD NOT HAPPEN!");
+		
+		this.point_prediction = y;
+		this.lower_bound = y - 1.96*predictive_deviance;
+		this.upper_bound = y + 1.96*predictive_deviance;
+		
+	}
+
 	@Override
 	public String toString() {
 		return point_prediction + " ∈ (" + ((Double) lower_bound).toString() + ", " + ((Double) upper_bound).toString() + ")";  

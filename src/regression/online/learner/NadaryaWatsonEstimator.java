@@ -45,8 +45,7 @@ public class NadaryaWatsonEstimator extends WindowRegressor {
 	
 	
 	@Override
-	public Prediction predict(double[][] dp) {
-		
+	public Prediction predict(double[][] dp) throws Exception {
 		
 		if(!slide && w_start == w_end) return new Prediction();
 		
@@ -78,10 +77,9 @@ public class NadaryaWatsonEstimator extends WindowRegressor {
 				
 		double sigma_square = (double) temp/(100000000.0*n);
 		
+		double predictive_deviance = Math.sqrt(((Math.pow(4*Math.PI, -0.5*feature_count))*sigma_square)/(denom));
 		
-		double predictive_deviation = Math.sqrt(((Math.pow(4*Math.PI, -0.5*feature_count))*sigma_square)/(denom));
-		
-		return new Prediction(pp, pp + 1.96*predictive_deviation, pp - 1.96*predictive_deviation, nom, denom);
+		return new Prediction(pp, predictive_deviance);
 	}
 
 	@Override

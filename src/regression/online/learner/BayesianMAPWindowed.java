@@ -52,7 +52,7 @@ public class BayesianMAPWindowed extends WindowRegressor {
 		
 		double predictive_deviation = Math.sqrt(running_residual_variance*MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(dp), mul1), dp)[0][0] + running_residual_variance);
 		
-		return new Prediction(pp, pp+1.96*predictive_deviation, pp-1.96*predictive_deviation);
+		return new Prediction(pp, predictive_deviation);
 		
 	}
 	

@@ -1,5 +1,7 @@
 package regression.online.util;
 
+import aima.core.util.math.*;
+
 public class MatrixOp {
 
 	public static double[][] mat_add(double m1[][], double m2[][]) throws Exception{
@@ -181,6 +183,23 @@ public class MatrixOp {
 		
 		return mult(transpose(low_tri_inv), low_tri_inv);
 		
+	}
+	
+	public static double get_det_of_psd_matrix(double[][] m) throws Exception {
+		double[][] low_tri = chk_decom(m);
+		double result = 1;
+		
+		for(int ctr = 0; ctr < m.length; ctr++)
+			result *= low_tri[ctr][ctr];
+		
+		return Math.pow(result, 2);
+	}
+	
+	public static double get_det_of_psd_matrix_2(double[][] m) throws Exception {
+		
+		LUDecomposition a = new LUDecomposition(new Matrix(m));
+		
+		return Math.pow(a.det(), 2);
 	}
 	
 	public static double[][] invert_lower_tri_matrix(double[][] m) throws Exception {
