@@ -72,7 +72,7 @@ public class RegressorTest {
 			}
 			
 			if(ctr > burn_in_period) {
-				accumulated_squared_error += Math.pow((pred.point_prediction - response)*10, 2);
+				accumulated_squared_error += Math.pow((pred.point_prediction - response)*100, 2);
 				if(pred.upper_bound != Double.NaN) {
 					if(pred.upper_bound < response || response < pred.lower_bound) interval_miss_count++;
 					accumulated_interval_width += (long) ((pred.upper_bound - pred.lower_bound)*100);
@@ -89,7 +89,7 @@ public class RegressorTest {
 			}
 		}
 		
-		rmse = Math.sqrt(accumulated_squared_error/(100));
+		rmse = Math.sqrt(accumulated_squared_error/(10000));
 		interval_containment_rate = (1 - (interval_miss_count / (double) (data_points.size() - burn_in_period)))*100;
 		avg_interval_width = accumulated_interval_width/(100.0*(data_points.size() - burn_in_period));
 		
@@ -140,7 +140,7 @@ public class RegressorTest {
 		    	data_points.add(dp);
 		    	
 		    	String[] response_tokens = tokens[1].split("\t");
-		    	double response = Double.parseDouble(response_tokens[response_tokens.length-1].trim())/1000.0; // in ms
+		    	double response = Double.parseDouble(response_tokens[response_tokens.length-1].trim()); // in ms
 		    	responses.add(response);
 		    	
 		    }
