@@ -15,6 +15,10 @@ public class GPWindowedAutoHyperParamTuning extends WindowRegressor {
 	double[][] k; // gram matrix
 	double[][] k_inv; // inverse gram matrix	
 	
+	double[] mean_responses; //mean_response;
+	double[][] coeff_u; // coefficients of the mean function;
+	
+	
 	// hyperparams
 	double a; //measurement_precision;
 	double b; //weight_precision;
@@ -37,6 +41,12 @@ public class GPWindowedAutoHyperParamTuning extends WindowRegressor {
 		
 		k = new double[w_size][w_size]; 
 		k_inv = new double[w_size][w_size];
+		
+		mean_responses = new double[w_size];
+		coeff_u = new double[input_width][1];
+		
+		for(int ctr = 0; ctr < input_width; ctr++)
+			coeff_u[ctr][0] = 0; // initially zero mean func
 		
 		hyperparams = new double[2+input_width];
 		
@@ -89,10 +99,10 @@ public class GPWindowedAutoHyperParamTuning extends WindowRegressor {
 		
 		double[][] temp_column = MatrixOp.mult(MatrixOp.transpose(spare_column), k_inv);
 		
-		double y = 0;
+		double y = mean_func(dp);
 		
 		for(int ctr = 0; ctr < n; ctr++)
-			y += temp_column[0][w_size - n + ctr]*responses[(w_start + ctr) % w_size][0];
+			y += temp_column[0][w_size - n + ctr]*(responses[(w_start + ctr) % w_size][0] - mean_responses[(w_start + ctr) % w_size]);
 		
 		double dif = kernel_func(dp, dp) -  MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(spare_column), k_inv), spare_column)[0][0];
 		double predictive_deviance = 0;
@@ -195,6 +205,7 @@ public class GPWindowedAutoHyperParamTuning extends WindowRegressor {
 		}
 		
 		responses[w_end][0] = y;
+		mean_responses[w_end] = mean_func(dp);
 		
 		if(slide) {
 			w_start = (w_start + 1) % w_size;
@@ -226,23 +237,21 @@ public class GPWindowedAutoHyperParamTuning extends WindowRegressor {
 			
 			count_dps_in_window();
 			
-			double[][] responses_matrix = new double[w_size][1];
+			double[][] responses_minus_mean_vector = new double[w_size][1];
+			double[][] responses_vector = new double[w_size][1];
 			
-			// creating y vector
+			// creating response-mean vector
 			
-			if(slide) {
-				for(int ctr = 0; ctr < w_size; ctr++)
-					responses_matrix[ctr][0] = responses[(w_start + ctr) % w_size][0];
-				}
-			else {  // means early  hyperparameter tuning
-				int ctr = 0;
-				for(; ctr < n; ctr++) {
-					responses_matrix[w_size - 1 - ctr][0] = responses[w_end - 1 - ctr][0];
-				}
-				for(; ctr < w_size - 1; ctr++) {
-					responses_matrix[w_size - 1 - ctr][0] = 0;
-				}
-			}
+			for(int ctr = 0; ctr < w_size; ctr++)
+				responses_vector[ctr][0] = responses[(w_start + ctr) % w_size][0];
+			
+			fit_linear_mean_model(responses_vector);
+			
+			for(int ctr = 0; ctr < w_size; ctr++)
+				mean_responses[ctr] = mean_func(dp_window[(w_start + ctr) % w_size]);
+			
+			for(int ctr = 0; ctr < w_size; ctr++)
+				responses_minus_mean_vector[ctr][0] = responses_vector[ctr][0] - mean_responses[ctr];
 			
 			double complexity_penalty = 0;
 			try {
@@ -252,7 +261,7 @@ public class GPWindowedAutoHyperParamTuning extends WindowRegressor {
 				complexity_penalty = Double.NEGATIVE_INFINITY;
 			}
 			
-			double data_fit = -0.5*MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(responses_matrix), k_inv), responses_matrix)[0][0];
+			double data_fit = -0.5*MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(responses_minus_mean_vector), k_inv), responses_minus_mean_vector)[0][0];
 			double constant = -(n/2.0)*Math.log(Math.PI*2);
 			
 			double marginal_lhood = complexity_penalty + data_fit + constant;
@@ -268,15 +277,32 @@ public class GPWindowedAutoHyperParamTuning extends WindowRegressor {
 			
 			//print_marginal_likelihood_vals(responses_matrix, marginal_lhood);
 			
-			update_hyperparams();
+			update_hyperparams(responses_minus_mean_vector);
 			
-			data_fit = -0.5*MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(responses_matrix), k_inv), responses_matrix)[0][0];
+			data_fit = -0.5*MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(responses_minus_mean_vector), k_inv), responses_minus_mean_vector)[0][0];
 			constant = -(n/2.0)*Math.log(Math.PI*2);
 			
 			marginal_lhood = complexity_penalty + data_fit + constant;
 			
 			System.out.println("POST-OPTIMIZATION ML :  -> " + marginal_lhood + " = " + complexity_penalty + " + " + data_fit + " + " + constant);
 		}
+	}
+
+	private void fit_linear_mean_model(double[][] responses_vector) throws Exception {
+		
+		double design_matrix[][] = new double[feature_count][w_size];
+		
+		for(int ctr = 0; ctr < n; ctr++) {
+			for(int ctr2 = 0; ctr2 < feature_count; ctr2++) {
+				design_matrix[ctr2][(w_start + ctr) % w_size] = dp_window[(w_start + ctr) % w_size][ctr2][0];
+			}
+		}
+		
+		coeff_u = MatrixOp.mult(MatrixOp.fast_invert_psd(MatrixOp.mult(design_matrix, MatrixOp.transpose(design_matrix))), MatrixOp.mult(design_matrix, responses_vector));
+	}
+
+	private double mean_func(double[][] dp) throws Exception {
+		return MatrixOp.mult(MatrixOp.transpose(coeff_u), dp)[0][0];
 	}
 
 	private int getIndexForDp(double[][] dp) {
@@ -397,14 +423,13 @@ public class GPWindowedAutoHyperParamTuning extends WindowRegressor {
 		recompute_k_inv();
 	}
 
-	private void update_hyperparams() throws Exception {
+	private void update_hyperparams(double[][] responses_minus_mean_vector) throws Exception {
 		
 		// we have a, b and length-scales as hyperparams to tune
 		
 		count_dps_in_window();
 		
 		double[][] derivative_cov_matrix = new double[w_size][w_size];
-		double[][] y = new double[w_size][1];
 		double[] gradient = new double[hyperparams.length];
 		double[] log_hyperparams = new double[hyperparams.length];
 		
@@ -414,22 +439,6 @@ public class GPWindowedAutoHyperParamTuning extends WindowRegressor {
 		System.out.println("pre-tuning parameters");
 		for(int ctr = 0; ctr < hyperparams.length; ctr++) {
 			System.out.println("parameter " + ctr + " " + log_hyperparams[ctr] + hyperparams[ctr]);
-		}
-		
-		// creating y vector
-		
-		if(slide) {
-			for(int ctr = 0; ctr < w_size; ctr++)
-				y[ctr][0] = responses[(w_start + ctr) % w_size][0];
-		}
-		else {  // means early  hyperparameter tuning
-			int ctr = 0;
-			for(; ctr < n; ctr++) {
-				y[w_size - 1 - ctr][0] = responses[w_end - 1 - ctr][0];
-			}
-			for(; ctr < w_size - 1; ctr++) {
-				y[w_size - 1 - ctr][0] = 0;
-			}
 		}
 		
 		// gradient ascent using RPROP
@@ -450,7 +459,7 @@ public class GPWindowedAutoHyperParamTuning extends WindowRegressor {
 		int it_count = 0;
 		
 		for(int ctr = 0; ctr < hyperparams.length; ctr++) {
-			step_size[ctr] = 0.01;
+			step_size[ctr] = 0.0001;
 			prev_gradient[ctr] = 0;
 		}
 		
@@ -459,7 +468,7 @@ public class GPWindowedAutoHyperParamTuning extends WindowRegressor {
 			
 			System.out.println("Iteration #" + ++it_count);
 			
-			double[][] alpha = MatrixOp.mult(k_inv, y);
+			double[][] alpha = MatrixOp.mult(k_inv, responses_minus_mean_vector);
 			
 			// tuning sigma_w
 			for(int ctr = 0; ctr < w_size; ctr++) {
@@ -468,7 +477,7 @@ public class GPWindowedAutoHyperParamTuning extends WindowRegressor {
 					else derivative_cov_matrix[ctr][ctr2] = (2.0)*k[ctr][ctr2]; // (2.0/hyperparams[1])*k[ctr][ctr2];
 				}
 			}
-			gradient[1] = 0.5*MatrixOp.trace(MatrixOp.mult(MatrixOp.mat_subtract(MatrixOp.mult(alpha, MatrixOp.transpose(alpha)), k_inv), derivative_cov_matrix)); // - 10/sigma_w;
+			gradient[1] = 0.5*MatrixOp.trace(MatrixOp.mult(MatrixOp.mat_subtract(MatrixOp.mult(alpha, MatrixOp.transpose(alpha)), k_inv), derivative_cov_matrix));
 			
 			// tuning sigma_y
 			for(int ctr = 0; ctr < w_size; ctr++) {
@@ -477,7 +486,7 @@ public class GPWindowedAutoHyperParamTuning extends WindowRegressor {
 					else derivative_cov_matrix[ctr][ctr2] = 0;
 				}
 			}
-			gradient[0] = 0;// 0.5*MatrixOp.trace(MatrixOp.mult(MatrixOp.mat_subtract(MatrixOp.mult(alpha, MatrixOp.transpose(alpha)), k_inv), derivative_cov_matrix));// - 1/(hyper_params[0]);
+			gradient[0] = 0.5*MatrixOp.trace(MatrixOp.mult(MatrixOp.mat_subtract(MatrixOp.mult(alpha, MatrixOp.transpose(alpha)), k_inv), derivative_cov_matrix));
 			
 			for(int ctr3 = 2; ctr3 < hyperparams.length; ctr3++) {
 				for(int ctr = 0; ctr < w_size; ctr++) {
@@ -552,6 +561,7 @@ public class GPWindowedAutoHyperParamTuning extends WindowRegressor {
 			
 			a = 1/(hyperparams[0]*hyperparams[0]);
 			b = 1/(hyperparams[1]*hyperparams[1]);
+			
 			
 			//System.out.println(gradient[1] + " / " + step_size[1]); 
 			

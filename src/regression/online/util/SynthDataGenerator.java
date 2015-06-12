@@ -15,7 +15,7 @@ public class SynthDataGenerator {
 	double[] params;
 	double[] exp_vars;
 	double target;
-	double noise_var = 0.0;
+	double noise_var = 0.001;
 	
 	public SynthDataGenerator(BufferedWriter writer, int feature_count, int instance_count) {
 		
@@ -50,7 +50,8 @@ public class SynthDataGenerator {
 				
 				
 				//target += exp_vars[ctr2]*params[ctr2] + exp_vars[ctr2]*12 + Math.pow(Math.E, exp_vars[ctr2]);
-				target += exp_vars[ctr2]*exp_vars[ctr2]*exp_vars[ctr2]*params[ctr2];
+				//target += exp_vars[ctr2]*exp_vars[ctr2]*exp_vars[ctr2]*params[ctr2];
+				target += exp_vars[ctr2]*params[ctr2];
 			}
 			
 			if(rand.nextBoolean()) target += rand.nextGaussian()*noise_var;
