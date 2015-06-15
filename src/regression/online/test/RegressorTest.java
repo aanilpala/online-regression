@@ -15,7 +15,9 @@ import regression.online.learner.BayesianPredictive;
 import regression.online.learner.BayesianMAPWindowed;
 import regression.online.learner.BayesianMLEWindowed;
 import regression.online.learner.BayesianPredictiveWindowed;
-import regression.online.learner.GPWindowedAutoHyperParamTuning;
+import regression.online.learner.GPWindowedFixedMean;
+import regression.online.learner.GPWindowedOLSMean;
+import regression.online.learner.GPWindowedZeroMean;
 import regression.online.learner.NadaryaWatsonEstimator;
 import regression.online.learner.Regressor;
 import regression.online.model.Prediction;
@@ -170,13 +172,17 @@ public class RegressorTest {
 //		regs.add(new BayesianPredictiveWindowed(input_width, false, 15, 10));
 //		regs.add(new BayesianPredictiveWindowed(input_width, true, 15, 10));
 //		
-//		regs.add(new NadaryaWatsonEstimator(input_width));
+//		regs.add(new NadasryaWatsonEstimator(input_width));
 		
 //		regs.add(new GPWindowed(input_width, 1, 1250));
 		
 //		regs.add(new GPWindowedAutoVarianceTuning(input_width, 1, 1));
 		
-		regs.add(new GPWindowedAutoHyperParamTuning(input_width, 0.3, 1.5));
+//		regs.add(new GPWindowedFixedMean(input_width, 0.01, 5));
+		
+		regs.add(new GPWindowedOLSMean(input_width, 0.01, 5));
+		
+//		regs.add(new GPWindowedZeroMean(input_width, 0.01, 5));
 		
 		
 		for(Regressor each : regs)
