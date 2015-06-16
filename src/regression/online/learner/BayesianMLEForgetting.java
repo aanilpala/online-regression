@@ -8,13 +8,11 @@ public class BayesianMLEForgetting extends Regressor {
 	double[][][] v;
 	double[][][] params; // column matrices
 	
-	double forgetting_factor = 0.9;
+	double forgetting_factor = 0.9; // smaller the forgetting factor, higher the forgetting is. So, when forgetting_factor is set to 1.0, there is no forgetting.
 	
 	public BayesianMLEForgetting(int input_width, boolean map2fs) {
 		
 		super(map2fs, input_width);
-	
-		name = "BayesianMLEForgetting" + (map2fs ? "_MAPPED" : "");
 		
 		v = new double[3][feature_count][feature_count];
 		params = new double[3][feature_count][1];

@@ -13,8 +13,6 @@ public class BayesianMLE extends Regressor {
 	public BayesianMLE(int input_width, boolean map2fs) {
 		
 		super(map2fs, input_width);
-	
-		name = "BayesianMLE" + (map2fs ? "_MAPPED" : "");
 		
 		a_inv = new double[3][feature_count][feature_count];
 		v = new double[3][feature_count][1];

@@ -160,29 +160,25 @@ public class RegressorTest {
 //		regs.add(new BayesianMLEForgetting(input_width, false));
 //		regs.add(new BayesianMLEForgetting(input_width, true));
 //		
-//		regs.add(new BayesianMAP(input_width, false, 15, 10));
-//		regs.add(new BayesianMAP(input_width, true, 15, 10));
-//		regs.add(new BayesianMAPWindowed(input_width, false, 15, 10));
-//		regs.add(new BayesianMAPWindowed(input_width, true, 15, 10));
-//		regs.add(new BayesianMAPForgetting(input_width, false, 15, 10));
-//		regs.add(new BayesianMAPForgetting(input_width, true, 15, 10));
-//		
-//		regs.add(new BayesianPredictive(input_width, false, 15, 10));
-//		regs.add(new BayesianPredictive(input_width, true, 15, 10));
-//		regs.add(new BayesianPredictiveWindowed(input_width, false, 15, 10));
-//		regs.add(new BayesianPredictiveWindowed(input_width, true, 15, 10));
-//		
-//		regs.add(new NadasryaWatsonEstimator(input_width));
+//		regs.add(new BayesianMAP(input_width, false, 0.1, 2));
+//		regs.add(new BayesianMAP(input_width, true, 0.1, 2));
+//		regs.add(new BayesianMAPWindowed(input_width, false, 0.1, 2));
+//		regs.add(new BayesianMAPWindowed(input_width, true, 0.1, 2));
+//		regs.add(new BayesianMAPForgetting(input_width, false, 0.1, 2));
+//		regs.add(new BayesianMAPForgetting(input_width, true, 0.2, 2));
 		
-//		regs.add(new GPWindowed(input_width, 1, 1250));
+//		regs.add(new BayesianPredictive(input_width, false, 1.5, 2));
+//		regs.add(new BayesianPredictive(input_width, true, 0.1, 2));
+//		regs.add(new BayesianPredictiveWindowed(input_width, false, 0.1, 2));
+//		regs.add(new BayesianPredictiveWindowed(input_width, true, 0.1, 2));
 		
-//		regs.add(new GPWindowedAutoVarianceTuning(input_width, 1, 1));
+//		regs.add(new NadaryaWatsonEstimator(input_width));
 		
-//		regs.add(new GPWindowedFixedMean(input_width, 0.01, 5));
+		regs.add(new GPWindowedFixedMean(input_width, 0.01, 5));
 		
 		regs.add(new GPWindowedOLSMean(input_width, 0.01, 5));
 		
-//		regs.add(new GPWindowedZeroMean(input_width, 0.01, 5));
+		regs.add(new GPWindowedZeroMean(input_width, 0.01, 5));
 		
 		
 		for(Regressor each : regs)

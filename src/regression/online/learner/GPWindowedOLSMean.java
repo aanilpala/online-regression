@@ -1,6 +1,5 @@
 package regression.online.learner;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Random;
 
@@ -18,44 +17,8 @@ public class GPWindowedOLSMean extends GPWindowedBase {
 	public GPWindowedOLSMean(int input_width, double signal_stddev, double weight_stddev) {
 		super(false, input_width);
 		
-		name = this.getClass().getName();
-		
-		k = new double[w_size][w_size]; 
-		k_inv = new double[w_size][w_size];
-		
 		mean_responses = new double[w_size];
 		coeff_u = new double[3*input_width][1];
-		
-		//for(int ctr = 0; ctr < input_width; ctr++)
-			//coeff_u[ctr][0] = 0; // initially zero mean func
-		
-		hyperparams = new double[2+input_width];
-		
-//		hyperparams[0] = signal_stddev;
-//		hyperparams[1] = weight_stddev;
-		
-		hyperparams[0] = rand.nextDouble()*sigma_y_max;
-		hyperparams[1] = rand.nextDouble()*sigma_w_max;
-		
-		for(int ctr = 0; ctr < input_width; ctr++) {
-			hyperparams[2+ctr] = rand.nextDouble()*length_scale_max;
-		}
-		
-		a = 1/(hyperparams[0]*hyperparams[0]);
-		b = 1/(hyperparams[1]*hyperparams[1]);
-		
-		for(int ctr = 0; ctr < w_size; ctr++) {
-			for(int ctr2 = 0; ctr2 < w_size; ctr2++) {
-				if(ctr == ctr2) {
-					k[ctr][ctr2] = (1/b + 1/a);
-					k_inv[ctr][ctr2] = 1/(1/b + 1/a);
-				}
-				else {
-					k[ctr][ctr2] = 0;
-					k_inv[ctr][ctr2] = 0;
-				}
-			}
-		}
 		
 	}
 	
@@ -63,8 +26,6 @@ public class GPWindowedOLSMean extends GPWindowedBase {
 	public Prediction predict(double[][] dp) throws Exception {
 		
 		double[][] spare_column = new double[w_size][1];
-		
-		count_dps_in_window();
 		
 		if(slide) {
 			for(int ctr = 0; ctr < w_size; ctr++) {
@@ -109,7 +70,7 @@ public class GPWindowedOLSMean extends GPWindowedBase {
 			// reject the update
 			// avg the response for the duplicate point
 			
-			responses[index][0] = (y + responses[index][0])/2.0; 
+			responses[index][0] = (y + responses[index][0])/2.0;
 			return;
 		}
 		
@@ -132,8 +93,6 @@ public class GPWindowedOLSMean extends GPWindowedBase {
 		spare_var = k_inv[0][0];
 		
 		shrunk_inv = MatrixOp.mat_add(shrunk_inv, MatrixOp.scalarmult(MatrixOp.mult(spare_column, MatrixOp.transpose(spare_column)), -1.0/spare_var));
-		
-		count_dps_in_window();
 		
 		if(slide) {
 			for(int ctr = 1; ctr < w_size; ctr++) {
@@ -203,6 +162,8 @@ public class GPWindowedOLSMean extends GPWindowedBase {
 			
 			if(w_start == w_end) slide = true;
 		}
+		
+		count_dps_in_window();
 		
 //		System.out.println("post-update");
 //		MatrixPrinter.print_matrix(k);
@@ -277,7 +238,22 @@ public class GPWindowedOLSMean extends GPWindowedBase {
 			}
 		}
 		
-		coeff_u = MatrixOp.mult(MatrixOp.fast_invert_psd(MatrixOp.mult(design_matrix, MatrixOp.transpose(design_matrix))), MatrixOp.mult(design_matrix, responses_vector));
+		double[][] x_x_t = MatrixOp.mult(design_matrix, MatrixOp.transpose(design_matrix));
+		
+		coeff_u = MatrixOp.mult(MatrixOp.fast_invert_psd(x_x_t), MatrixOp.mult(design_matrix, responses_vector));
+		
+		boolean illegal_coeffs = false;
+		for (int ctr = 0; ctr < coeff_u.length; ctr++) {
+			if(Double.isNaN(coeff_u[ctr][0]) || Double.isInfinite(coeff_u[ctr][0])) {
+				illegal_coeffs = true;
+				break;
+			}
+		}
+		
+		if(illegal_coeffs) {
+			x_x_t = MatrixOp.identitiy_add(x_x_t, 0.1);
+			coeff_u = MatrixOp.mult(MatrixOp.fast_invert_psd(x_x_t), MatrixOp.mult(design_matrix, responses_vector));
+		}
 	}
 
 	private double mean_func(double[][] dp) throws Exception {

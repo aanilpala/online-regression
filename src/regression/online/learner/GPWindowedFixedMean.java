@@ -17,55 +17,13 @@ public class GPWindowedFixedMean extends GPWindowedBase {
 	public GPWindowedFixedMean(int input_width, double signal_stddev, double weight_stddev) {
 		super(false, input_width);
 		
-		name = this.getClass().getName();
-		
-		k = new double[w_size][w_size]; 
-		k_inv = new double[w_size][w_size];
-		
-		//mean_responses = new double[w_size];
-		//coeff_u = new double[input_width][1];
-		
-		//for(int ctr = 0; ctr < input_width; ctr++)
-			//coeff_u[ctr][0] = 0; // initially zero mean func
-		
 		mean = 0;
-		
-		hyperparams = new double[2+input_width];
-		
-//		hyperparams[0] = 1; //signal_stddev;
-//		hyperparams[1] = 50; //weight_stddev;
-		
-		hyperparams[0] = rand.nextDouble()*sigma_y_max;
-		hyperparams[1] = rand.nextDouble()*sigma_w_max;
-		
-		for(int ctr = 0; ctr < input_width; ctr++) {
-			hyperparams[2+ctr] = rand.nextDouble()*length_scale_max;
-		}
-		
-		a = 1/(hyperparams[0]*hyperparams[0]);
-		b = 1/(hyperparams[1]*hyperparams[1]);
-		
-		for(int ctr = 0; ctr < w_size; ctr++) {
-			for(int ctr2 = 0; ctr2 < w_size; ctr2++) {
-				if(ctr == ctr2) {
-					k[ctr][ctr2] = (1/b + 1/a);
-					k_inv[ctr][ctr2] = 1/(1/b + 1/a);
-				}
-				else {
-					k[ctr][ctr2] = 0;
-					k_inv[ctr][ctr2] = 0;
-				}
-			}
-		}
-		
 	}
 	
 	@Override
 	public Prediction predict(double[][] dp) throws Exception {
 		
 		double[][] spare_column = new double[w_size][1];
-		
-		count_dps_in_window();
 		
 		if(slide) {
 			for(int ctr = 0; ctr < w_size; ctr++) {
@@ -111,7 +69,7 @@ public class GPWindowedFixedMean extends GPWindowedBase {
 			// reject the update
 			// avg the response for the duplicate point
 			
-			responses[index][0] = (y + responses[index][0])/2.0; 
+			responses[index][0] = (y + responses[index][0])/2.0;
 			return;
 		}
 		
@@ -134,8 +92,6 @@ public class GPWindowedFixedMean extends GPWindowedBase {
 		spare_var = k_inv[0][0];
 		
 		shrunk_inv = MatrixOp.mat_add(shrunk_inv, MatrixOp.scalarmult(MatrixOp.mult(spare_column, MatrixOp.transpose(spare_column)), -1.0/spare_var));
-		
-		count_dps_in_window();
 		
 		if(slide) {
 			for(int ctr = 1; ctr < w_size; ctr++) {
@@ -206,6 +162,8 @@ public class GPWindowedFixedMean extends GPWindowedBase {
 			if(w_start == w_end) slide = true;
 		}
 		
+		count_dps_in_window();
+		
 //		System.out.println("post-update");
 //		MatrixPrinter.print_matrix(k);
 //		System.out.println("post-update_inv");
@@ -223,8 +181,6 @@ public class GPWindowedFixedMean extends GPWindowedBase {
 		update_count++;
 		
 		if(slide && ((update_count - w_size) % hyper_param_update_freq == 0)) { 
-			
-			count_dps_in_window();
 			
 			double[][] responses_minus_mean_vector = new double[w_size][1];
 			double[][] responses_vector = new double[w_size][1];

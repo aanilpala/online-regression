@@ -17,8 +17,6 @@ public class NadaryaWatsonEstimator extends WindowRegressor {
 		
 		super(false, input_width);
 		
-		name = "Nadarya-Watson";
-		
 		fitted = new double[w_size][2];
 		h = new double[input_width];
 		var = new double[input_width];
@@ -48,8 +46,6 @@ public class NadaryaWatsonEstimator extends WindowRegressor {
 	public Prediction predict(double[][] dp) throws Exception {
 		
 		if(!slide && w_start == w_end) return new Prediction();
-		
-		count_dps_in_window(); // this sets n;
 		
 		double denom = 0;
 		double nom = 0;
@@ -83,9 +79,17 @@ public class NadaryaWatsonEstimator extends WindowRegressor {
 	}
 
 	@Override
-	public void update(double[][] dp, double y, Prediction prediction) {
+	public void update(double[][] dp, double y, Prediction prediction) throws Exception {
 		
-		count_dps_in_window(); // this sets n;
+		int index = getIndexForDp(dp);
+		
+		if(index != -1) {
+			// reject the update
+			// avg the response for the duplicate point
+			
+			responses[index][0] = (y + responses[index][0])/2.0;
+			return;
+		} 
 		
 		if(slide) {
 			
@@ -147,6 +151,8 @@ public class NadaryaWatsonEstimator extends WindowRegressor {
 			
 		}
 		
+		count_dps_in_window();
+		
 		update_count++;
 		if((update_count - w_size) % hyper_param_tuning_freq == 0)
 			tune_hyper_params();
@@ -154,8 +160,6 @@ public class NadaryaWatsonEstimator extends WindowRegressor {
 	}
 
 	private void tune_hyper_params() {
-
-		count_dps_in_window(); // this sets n;
 		
 		// get rss with the current bandwidths
 		double target_rss = get_hold_one_out_rss(h);

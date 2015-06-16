@@ -15,11 +15,12 @@ public class BayesianMAPWindowed extends WindowRegressor {
 	double a; //measurement_precision;
 	double b; //weight_precision;
 	
+	int weight_precision_adaptation_freq = 100*w_size;
+	int update_count;
+	
 	public BayesianMAPWindowed(int input_width, boolean map2fs, double signal_stddev, double weight_stddev) {
 		
 		super(map2fs, input_width);
-		
-		name = "BayesianMAPWindowed" + (map2fs ? "_MAPPED" : "");
 		
 		a = 1/(signal_stddev*signal_stddev);
 		b = 1/(weight_stddev*weight_stddev);
@@ -41,6 +42,7 @@ public class BayesianMAPWindowed extends WindowRegressor {
 		}
 		
 		running_residual_variance = 0;
+		update_count = 0;
 		
 	}
 	
@@ -57,6 +59,16 @@ public class BayesianMAPWindowed extends WindowRegressor {
 	}
 	
 	public void update(double[][] dp, double y, Prediction prediction) throws Exception {
+		
+		int index = getIndexForDp(dp);
+		
+		if(index != -1) {
+			// reject the update
+			// avg the response for the duplicate point
+			
+			responses[index][0] = (y + responses[index][0])/2.0;
+			return;
+		} 
 		
 		if(map2fs) dp = nlinmap.map(dp);
 		
@@ -134,8 +146,48 @@ public class BayesianMAPWindowed extends WindowRegressor {
 		
 		running_residual_variance = squared_res_sum / 100000000.0*(n - feature_count);
 		
+		update_count++;
+		
+		if(slide && (update_count - w_size) % weight_precision_adaptation_freq == 0) {
+			double[][] weight_cov = get_weights_cov_matrix();
+			
+			// b approximation
+//			double avg_var = 0;
+//			for(int ctr = 0; ctr < weight_cov.length; ctr++)
+//				avg_var += weight_cov[ctr][ctr];
+//			
+//			avg_var /= weight_cov.length;
+//			
+//			double old_b = b;
+//			b = 1/avg_var;
+			
+			// recomputing mul1, mul2 and params
+			
+			double design_matrix[][] = new double[feature_count][w_size];  
+			
+			// making mul2 the design matrix for now
+			for(int ctr = 0; ctr < w_size; ctr++) {
+				for(int ctr2 = 0; ctr2 < feature_count; ctr2++) {
+					double entry = dp_window[(w_start + ctr) % w_size][ctr2][0];
+					design_matrix[ctr2][(w_start + ctr) % w_size] = entry;
+				}
+			}
+			
+			mul1 = MatrixOp.scalarmult(MatrixOp.fast_invert_psd(MatrixOp.mat_add(MatrixOp.scalarmult(MatrixOp.mult(design_matrix, MatrixOp.transpose(design_matrix)), a), MatrixOp.fast_invert_psd(weight_cov))), a);
+			
+			double[][] responses_vector = new double[w_size][1];
+			
+			// creating response vector
+			for(int ctr = 0; ctr < n; ctr++) 
+				responses_vector[ctr][0] = responses[(w_start + ctr) % w_size][0];
+			
+			mul2 = MatrixOp.mult(design_matrix, responses_vector);
+			
+			params = MatrixOp.mult(mul1, design_matrix);
+		}
+		
 	}
-	
+
 	public void print_params() {
 		
 		if(map2fs) {

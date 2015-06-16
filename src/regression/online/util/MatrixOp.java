@@ -232,4 +232,20 @@ public class MatrixOp {
 	public static void main(String[] args) {
 		
 	}
+
+	public static boolean isProportional(double[][] vec1, double[][] vec2) throws Exception {
+		
+		if(vec1.length != vec2.length || vec1[0].length != 1 || vec2[0].length != 1) throw new Exception("Size is not supported for this Op");
+		
+		if(vec1.length == 1) return false;
+		
+		double proportion = vec1[0][0]/vec2[0][0];
+		
+		for(int ctr = 1; ctr < vec1.length; ctr++) {
+			double cur_proportion = vec1[ctr][0]/vec2[ctr][0];
+			if(cur_proportion != proportion) return false;
+		}
+		
+		return true;
+	}
 }

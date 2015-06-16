@@ -27,7 +27,35 @@ public abstract class GPWindowedBase extends WindowRegressor{
 	
 	public GPWindowedBase(boolean map2fs, int input_width) {
 		super(map2fs, input_width);
-		// TODO Auto-generated constructor stub
+		
+		k = new double[w_size][w_size]; 
+		k_inv = new double[w_size][w_size];
+		
+		hyperparams = new double[2+input_width];
+		hyperparams[0] = rand.nextDouble()*sigma_y_max;
+		hyperparams[1] = rand.nextDouble()*sigma_w_max;
+		
+		for(int ctr = 0; ctr < input_width; ctr++) {
+			hyperparams[2+ctr] = rand.nextDouble()*length_scale_max;
+		}
+		
+		a = 1/(hyperparams[0]*hyperparams[0]);
+		b = 1/(hyperparams[1]*hyperparams[1]);
+		
+		
+		
+		for(int ctr = 0; ctr < w_size; ctr++) {
+			for(int ctr2 = 0; ctr2 < w_size; ctr2++) {
+				if(ctr == ctr2) {
+					k[ctr][ctr2] = (1/b + 1/a);
+					k_inv[ctr][ctr2] = 1/(1/b + 1/a);
+				}
+				else {
+					k[ctr][ctr2] = 0;
+					k_inv[ctr][ctr2] = 0;
+				}
+			}
+		}
 	}
 	
 	protected void set_gradients(double[] gradient, double[][] y) throws Exception {
@@ -619,40 +647,6 @@ public abstract class GPWindowedBase extends WindowRegressor{
 		
 		return kernel_measure;
 	}
-
-	protected int getIndexForDp(double[][] dp) {
-		
-		count_dps_in_window();
-		
-		for(int ctr = 0; ctr < n; ctr++)
-			if(MatrixOp.isEqual(dp, dp_window[(w_start + ctr) % w_size])) return (w_start + ctr) % w_size;
-		
-		return -1;
-	}
-
-
-//	private void set_weights_cov_matrix() throws Exception {
-//		
-//		if(!slide) throw new Exception("Slide should be enabled for this op!");
-//		
-//		count_dps_in_window();
-//		
-//		double[][] design_matrix = new double[n][feature_count];
-//		double[][] ones = new double[n][1];
-//		
-//		for(int ptr = w_start, ctr = 0; ctr < n; ptr = (ptr + 1) % w_size, ctr++) {
-//			for(int ctr2 = 0; ctr2 < feature_count; ctr2++) {
-//				design_matrix[ptr][ctr2] += dp_window[ptr][ctr2][0];
-//			}
-//		}
-//		
-//		for(int ctr = 0; ctr < n; ctr++)
-//			ones[ctr][0] = 1;
-//		
-//		design_matrix = MatrixOp.mat_subtract(design_matrix, MatrixOp.scalarmult(MatrixOp.mult(MatrixOp.mult(ones, MatrixOp.transpose(ones)), design_matrix), 1.0/n));
-//		weight_cov = MatrixOp.scalarmult(MatrixOp.mult(MatrixOp.transpose(design_matrix), design_matrix), 1.0/n);
-//		
-//	}
 	
 //	private void print_marginal_likelihood_vals(double[][] responses_matrix, double current_mlik) throws Exception {
 //		

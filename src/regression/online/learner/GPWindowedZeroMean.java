@@ -14,48 +14,12 @@ public class GPWindowedZeroMean extends GPWindowedBase {
 	
 	public GPWindowedZeroMean(int input_width, double signal_stddev, double weight_stddev) {
 		super(false, input_width);
-		
-		name = this.getClass().getName();
-		
-		k = new double[w_size][w_size]; 
-		k_inv = new double[w_size][w_size];
-		
-		hyperparams = new double[2+input_width];
-		
-//		hyperparams[0] = 1; //signal_stddev;
-//		hyperparams[1] = 50; //weight_stddev;
-		
-		hyperparams[0] = rand.nextDouble()*sigma_y_max;
-		hyperparams[1] = rand.nextDouble()*sigma_w_max;
-		
-		for(int ctr = 0; ctr < input_width; ctr++) {
-			hyperparams[2+ctr] = rand.nextDouble()*length_scale_max;
-		}
-		
-		a = 1/(hyperparams[0]*hyperparams[0]);
-		b = 1/(hyperparams[1]*hyperparams[1]);
-		
-		for(int ctr = 0; ctr < w_size; ctr++) {
-			for(int ctr2 = 0; ctr2 < w_size; ctr2++) {
-				if(ctr == ctr2) {
-					k[ctr][ctr2] = (1/b + 1/a);
-					k_inv[ctr][ctr2] = 1/(1/b + 1/a);
-				}
-				else {
-					k[ctr][ctr2] = 0;
-					k_inv[ctr][ctr2] = 0;
-				}
-			}
-		}
-		
 	}
 	
 	@Override
 	public Prediction predict(double[][] dp) throws Exception {
 		
 		double[][] spare_column = new double[w_size][1];
-		
-		count_dps_in_window();
 		
 		if(slide) {
 			for(int ctr = 0; ctr < w_size; ctr++) {
@@ -99,7 +63,7 @@ public class GPWindowedZeroMean extends GPWindowedBase {
 			// reject the update
 			// avg the response for the duplicate point
 			
-			responses[index][0] = (y + responses[index][0])/2.0; 
+			responses[index][0] = (y + responses[index][0])/2.0;
 			return;
 		}
 		
@@ -122,8 +86,6 @@ public class GPWindowedZeroMean extends GPWindowedBase {
 		spare_var = k_inv[0][0];
 		
 		shrunk_inv = MatrixOp.mat_add(shrunk_inv, MatrixOp.scalarmult(MatrixOp.mult(spare_column, MatrixOp.transpose(spare_column)), -1.0/spare_var));
-		
-		count_dps_in_window();
 		
 		if(slide) {
 			for(int ctr = 1; ctr < w_size; ctr++) {
@@ -193,6 +155,8 @@ public class GPWindowedZeroMean extends GPWindowedBase {
 			
 			if(w_start == w_end) slide = true;
 		}
+		
+		count_dps_in_window();
 		
 //		System.out.println("post-update");
 //		MatrixPrinter.print_matrix(k);

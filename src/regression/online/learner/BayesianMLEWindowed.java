@@ -15,8 +15,6 @@ public class BayesianMLEWindowed extends WindowRegressor {
 	public BayesianMLEWindowed(int input_width, boolean map2fs) {
 		
 		super(map2fs, input_width);
-	
-		name = "BayesianMLEWindowed" + (map2fs ? "_MAPPED" : "");
 		
 		mul1 = new double[feature_count][feature_count];
 		mul2 = new double[feature_count][1];
@@ -51,6 +49,16 @@ public class BayesianMLEWindowed extends WindowRegressor {
 	}
 	
 	public void update(double[][] dp, double y, Prediction prediction) throws Exception {
+		
+		int index = getIndexForDp(dp);
+		
+		if(index != -1) {
+			// reject the update
+			// avg the response for the duplicate point
+			
+			responses[index][0] = (y + responses[index][0])/2.0;
+			return;
+		}
 		
 		if(map2fs) dp = nlinmap.map(dp);
 		

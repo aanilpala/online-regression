@@ -7,11 +7,17 @@ public class NLInputMapper {
 	public int feature_dim;
 	public int[][] input_mapping;
 	public int log_map_size;
+	public int sqrt_map_size;
 	
-	public NLInputMapper(int input_dim, int exp, boolean log_features_enabled) {
+	public NLInputMapper(int input_dim, int exp, boolean log_features_enabled, boolean sqrt_features_enabled) {
+		
+		this.input_dim = input_dim;
 		
 		if(log_features_enabled) log_map_size = input_dim;
 		else log_map_size = 0;
+		
+		if(sqrt_features_enabled) sqrt_map_size = input_dim;
+		else sqrt_map_size = 0;
 		
 		if(exp > 3) {
 			System.out.println("Generic Mapper is not supported yet");
@@ -32,7 +38,7 @@ public class NLInputMapper {
 			feature_dim += nom/denom;
 		}
 		
-		feature_dim += log_map_size;
+		feature_dim += (log_map_size + sqrt_map_size);
 		input_mapping = new int[feature_dim][exp];
 		
 		for(int ctr = 0; ctr < feature_dim; ctr++) {
@@ -67,7 +73,11 @@ public class NLInputMapper {
 		
 		for(int ctr = 0; log_features_enabled &&ctr < input_dim; ctr++) {
 			input_mapping[map_counter++][0] = -1*(ctr+1);
-		}	
+		}
+		
+		for(int ctr = 0; sqrt_features_enabled &&ctr < input_dim; ctr++) {
+			input_mapping[map_counter++][0] = Integer.MIN_VALUE + (ctr+1);
+		}
 	}
 	
 	public double[][] map(double[][] input) {
@@ -81,7 +91,8 @@ public class NLInputMapper {
 			features[ctr][0] = 1.0f;
 			for(int ctr2 = 0; ctr2 < exp; ctr2++) {
 				if(input_mapping[ctr][ctr2] >= 0) features[ctr][0] *= input[input_mapping[ctr][ctr2]][0];
-				else if(input_mapping[ctr][ctr2] > Integer.MIN_VALUE) features[ctr][0] *= Math.log(input[-1*input_mapping[ctr][ctr2]-1][0]);
+				else if(input_mapping[ctr][ctr2] >= -1*(input_dim)) features[ctr][0] *= Math.log(input[-1*input_mapping[ctr][ctr2]-1][0]);
+				else if(input_mapping[ctr][ctr2] > Integer.MIN_VALUE) features[ctr][0] *= Math.sqrt(input[-1*(Integer.MIN_VALUE - input_mapping[ctr][ctr2]) - 1][0]);
 			}
 		}
 		

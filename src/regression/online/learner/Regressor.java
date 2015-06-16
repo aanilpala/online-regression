@@ -14,13 +14,17 @@ public abstract class Regressor {
 		
 		this.map2fs = map2fs2;
 		
+		name = this.getClass().getName();
+		
 		if(map2fs) {
-			nlinmap = new NLInputMapper(input_width, 2, true);
+			nlinmap = new NLInputMapper(input_width, 2, true, true);
 			this.feature_count = nlinmap.feature_dim;
+			name += "Mapped";
 		}
 		else {
 			this.feature_count = input_width;
 		}
+		
 	}
 	
 	public Prediction predict(double[][] dp) throws Exception { return null; };

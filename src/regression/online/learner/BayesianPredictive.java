@@ -16,8 +16,6 @@ public class BayesianPredictive extends Regressor {
 		
 		super(map2fs, input_width);
 		
-		name = "BayesianPredictive" + (map2fs ? "_MAPPED" : "");
-		
 		a = 1/(signal_stddev*signal_stddev);
 		b = 1/(weight_stddev*weight_stddev);
 	
@@ -64,8 +62,6 @@ public class BayesianPredictive extends Regressor {
 		double denom = 1 + MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(dp), mul1), dp)[0][0];
 		
 		double[][] nom1 = MatrixOp.mult(MatrixOp.mult(MatrixOp.mult(mul1, dp), MatrixOp.transpose(dp)),mul1);
-		
-		// compute b
 		
 		mul1 = MatrixOp.mat_add(mul1, MatrixOp.scalarmult(nom1, -1/denom));
 		

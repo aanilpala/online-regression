@@ -17,8 +17,6 @@ public class BayesianMAP extends Regressor {
 		
 		super(map2fs, input_width);
 		
-		name = "BayesianMAP" + (map2fs ? "_MAPPED" : "");
-		
 		a = 1/(signal_stddev*signal_stddev);
 		b = 1/(weight_stddev*weight_stddev);
 	
@@ -41,7 +39,6 @@ public class BayesianMAP extends Regressor {
 				params[ctr3][ctr][0] = 0;
 			}
 		}
-		
 	}
 	
 	public Prediction predict(double[][] dp) throws Exception {

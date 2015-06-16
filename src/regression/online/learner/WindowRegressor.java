@@ -1,5 +1,7 @@
 package regression.online.learner;
 
+import regression.online.util.MatrixOp;
+
 public abstract class WindowRegressor extends Regressor {
 
 	public int w_size = 40; // sliding window size
@@ -28,9 +30,35 @@ public abstract class WindowRegressor extends Regressor {
 		update_count = 0;
 	}
 	
+	protected int getIndexForDp(double[][] dp) throws Exception {
+		
+		for(int ctr = 0; ctr < n; ctr++)
+			if(MatrixOp.isEqual(dp, dp_window[(w_start + ctr) % w_size])) return (w_start + ctr) % w_size;
+		
+		return -1;
+	}
 	
-	
-	
-	
-	
+	protected double[][] get_weights_cov_matrix() throws Exception {
+		
+		if(!slide) throw new Exception("Slide should be enabled for this op!");
+		
+		double[][] design_matrix = new double[w_size][feature_count];
+		double[][] weight_cov = new double[w_size][feature_count];
+		double[][] ones = new double[w_size][1];
+		
+		for(int ptr = w_start, ctr = 0; ctr < w_size; ptr = (ptr + 1) % w_size, ctr++) {
+			for(int ctr2 = 0; ctr2 < feature_count; ctr2++) {
+				design_matrix[ptr][ctr2] = dp_window[ptr][ctr2][0];
+			}
+		}
+		
+		for(int ctr = 0; ctr < w_size; ctr++)
+			ones[ctr][0] = 1;
+		
+		design_matrix = MatrixOp.mat_subtract(design_matrix, MatrixOp.scalarmult(MatrixOp.mult(MatrixOp.mult(ones, MatrixOp.transpose(ones)), design_matrix), 1.0/w_size));
+		weight_cov = MatrixOp.scalarmult(MatrixOp.mult(MatrixOp.transpose(design_matrix), design_matrix), 1.0/w_size);
+		
+		return weight_cov;
+		
+	}
 }
