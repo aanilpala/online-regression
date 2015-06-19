@@ -18,7 +18,7 @@ import regression.online.learner.BayesianPredictiveWindowed;
 import regression.online.learner.GPWindowedFixedMean;
 import regression.online.learner.GPWindowedOLSMean;
 import regression.online.learner.GPWindowedZeroMean;
-import regression.online.learner.NadaryaWatsonEstimator;
+import regression.online.learner.KernelRegression;
 import regression.online.learner.Regressor;
 import regression.online.model.Prediction;
 
@@ -27,7 +27,7 @@ public class RegressorTest {
 	public Regressor reg;
 	public List<double[][]> data_points;
 	public List<Double> responses;
-	public double rmse;
+	public double smse;
 	public double interval_containment_rate;
 	public double avg_interval_width;
 	
@@ -41,7 +41,7 @@ public class RegressorTest {
 		this.data_points = data_points;
 		this.responses = responses;
 		this.reg = reg;
-		this.rmse = 0;
+		this.smse = 0;
 		
 	}
 	
@@ -49,7 +49,11 @@ public class RegressorTest {
 		int interval_miss_count= 0;
 		long accumulated_squared_error = 0;
 		long accumulated_interval_width = 0;
-		int burn_in_period = 40;
+		int burn_in_number = reg.get_burn_in_number();
+		int m_n = 0;
+		int interval_width_counter = 0;
+		
+		double m_new, m_old = 0, s_new = 0, s_old = 0; // needed for target variance computation
 		
 		FileWriter fw = null;
 		if(dump_logs) {
@@ -73,10 +77,28 @@ public class RegressorTest {
 				e1.printStackTrace();
 			}
 			
-			if(ctr > burn_in_period) {
-				accumulated_squared_error += Math.pow((pred.point_prediction - response)*100, 2);
-				if(pred.upper_bound != Double.NaN) {
-					if(pred.upper_bound < response || response < pred.lower_bound) interval_miss_count++;
+			if(ctr >= burn_in_number) {
+				if(!Double.isNaN(pred.point_prediction)) {
+					m_n++;
+					if(m_n == 1) {
+						m_old = m_new = response;
+						s_old = 0;
+					}
+					else {
+						m_new = m_old + (response - m_old)/m_n;
+						s_new = s_old + (response - m_old)*(response - m_new);
+						
+						//for the next iteration
+						m_old = m_new;
+						s_old = s_new;
+					}
+					accumulated_squared_error += Math.pow((pred.point_prediction - response)*100, 2);
+				}
+				if(!Double.isNaN(pred.lower_bound) && !(Double.isNaN(pred.lower_bound))) {
+					interval_width_counter++;
+					if(pred.upper_bound < response || response < pred.lower_bound) 
+						interval_miss_count++;
+					
 					accumulated_interval_width += (long) ((pred.upper_bound - pred.lower_bound)*100);
 				}
 			}
@@ -90,15 +112,16 @@ public class RegressorTest {
 				}
 			}
 		}
-		
-		rmse = Math.sqrt(accumulated_squared_error/(10000));
-		interval_containment_rate = (1 - (interval_miss_count / (double) (data_points.size() - burn_in_period)))*100;
-		avg_interval_width = accumulated_interval_width/(100.0*(data_points.size() - burn_in_period));
+	
+		double target_variance = s_new/(m_n-1);
+		smse = Math.sqrt(accumulated_squared_error/(target_variance*(10000.0)*m_n));
+		interval_containment_rate = (1 - (interval_miss_count / (double) (interval_width_counter)))*100;
+		avg_interval_width = accumulated_interval_width/(100.0*interval_width_counter);
 		
 		if(dump_logs) {
 			try {
 				fw.write("SUMMARY\n");
-				fw.write("RMSE = " + rmse + " Avg Inteval Width = " + avg_interval_width + " Interval Containment Ratio = " + interval_containment_rate + "%");
+				fw.write("SMSE = " + smse + " Avg Inteval Width = " + avg_interval_width + " Interval Containment Ratio = " + interval_containment_rate + "%");
 				fw.flush();
 				fw.close();
 			} catch (IOException e) {
@@ -107,8 +130,8 @@ public class RegressorTest {
 		}
 	}
 	
-	public double getRMSE(){
-		return rmse;
+	public double getSMSE(){
+		return smse;
 	}
 	
 	public double getContainmentRate(){
@@ -165,20 +188,22 @@ public class RegressorTest {
 //		regs.add(new BayesianMAPWindowed(input_width, false, 0.1, 2));
 //		regs.add(new BayesianMAPWindowed(input_width, true, 0.1, 2));
 //		regs.add(new BayesianMAPForgetting(input_width, false, 0.1, 2));
-//		regs.add(new BayesianMAPForgetting(input_width, true, 0.2, 2));
+//		regs.add(new BayesianMAPForgetting(input_width, true, 0.1, 2));
 		
-//		regs.add(new BayesianPredictive(input_width, false, 1.5, 2));
+//		regs.add(new BayesianPredictive(input_width, false, 0.1, 2));
 //		regs.add(new BayesianPredictive(input_width, true, 0.1, 2));
 //		regs.add(new BayesianPredictiveWindowed(input_width, false, 0.1, 2));
 //		regs.add(new BayesianPredictiveWindowed(input_width, true, 0.1, 2));
 		
 //		regs.add(new NadaryaWatsonEstimator(input_width));
 		
-		regs.add(new GPWindowedFixedMean(input_width, 0.01, 5));
+		regs.add(new KernelRegression(input_width, 250));
 		
-		regs.add(new GPWindowedOLSMean(input_width, 0.01, 5));
-		
-		regs.add(new GPWindowedZeroMean(input_width, 0.01, 5));
+//		regs.add(new GPWindowedFixedMean(input_width, 0.01, 5));
+//		
+//		regs.add(new GPWindowedOLSMean(input_width, 0.01, 5));
+//		
+//		regs.add(new GPWindowedZeroMean(input_width, 0.01, 5));
 		
 		
 		for(Regressor each : regs)
@@ -186,7 +211,7 @@ public class RegressorTest {
 
 		for(RegressorTest each : reg_testers) {
 			each.test(true);
-			System.out.println(each.getRegName() + " RMSE= " + each.getRMSE() + " Avg Inteval Width = " + each.avg_interval_width + " IContainment: " + each.getContainmentRate() + "%");
+			System.out.println(each.getRegName() + " SMSE= " + each.getSMSE() + " Avg Inteval Width = " + each.avg_interval_width + " IContainment: " + each.getContainmentRate() + "%");
 		}
 		
 	}

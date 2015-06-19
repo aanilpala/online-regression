@@ -15,7 +15,7 @@ public abstract class GPWindowedBase extends WindowRegressor{
 	double b; //weight_precision;
 	double[] hyperparams; // length-scale array;
 		
-	double sigma_y_max = 10;
+	double sigma_y_max = 1;
 	double sigma_w_max = 100;
 	double length_scale_max = 100;
 		
@@ -25,8 +25,8 @@ public abstract class GPWindowedBase extends WindowRegressor{
 		
 	Random rand = new Random();
 	
-	public GPWindowedBase(boolean map2fs, int input_width) {
-		super(map2fs, input_width);
+	public GPWindowedBase(boolean map2fs, int input_width, int window_size) {
+		super(map2fs, input_width, window_size);
 		
 		k = new double[w_size][w_size]; 
 		k_inv = new double[w_size][w_size];
@@ -216,9 +216,9 @@ public abstract class GPWindowedBase extends WindowRegressor{
 		boolean optima_found = false;
 		double[] prev_gradient = new double[hyperparams.length];
 		
-		double optima_gradient_threshold = 5;
+		double optima_gradient_threshold = 1.5;
 		double min_gradient_delta = 0;
-		int max_it_count = 10000;
+		int max_it_count = 100000;
 				
 		System.out.println("tuning...");
 		int it_count = 0;
@@ -257,7 +257,6 @@ public abstract class GPWindowedBase extends WindowRegressor{
 			
 			if(stuck) {
 				cur_likhood = Double.NaN;
-				it_count = 0;
 				is_not_psd = false;
 				
 				while(is_not_psd || Double.isNaN(cur_likhood) || Double.isInfinite(cur_likhood)) {
@@ -358,6 +357,8 @@ public abstract class GPWindowedBase extends WindowRegressor{
 					break;
 				}	
 			}
+			
+			it_count += step_count;
 			
 			System.out.println("current_likelyhood: " + cur_likhood + ", " + step_count);
 			

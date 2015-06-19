@@ -12,8 +12,8 @@ import regression.online.util.MatrixPrinter;
 
 public class GPWindowedZeroMean extends GPWindowedBase {
 	
-	public GPWindowedZeroMean(int input_width, double signal_stddev, double weight_stddev) {
-		super(false, input_width);
+	public GPWindowedZeroMean(int input_width, int window_size, double signal_stddev, double weight_stddev) {
+		super(false, input_width, window_size);
 	}
 	
 	@Override

@@ -28,6 +28,8 @@ public abstract class Regressor {
 	}
 	
 	public Prediction predict(double[][] dp) throws Exception { return null; };
-	public void update(double[][] dp, double y, Prediction prediction) throws Exception {};
+	public void update(double[][] dp, double y, Prediction prediction) throws Exception {}
+
+	public int get_burn_in_number() {return 0; };
 	
 }

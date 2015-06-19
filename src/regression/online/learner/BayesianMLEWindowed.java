@@ -12,9 +12,9 @@ public class BayesianMLEWindowed extends WindowRegressor {
 	
 	double running_residual_variance;
 	
-	public BayesianMLEWindowed(int input_width, boolean map2fs) {
+	public BayesianMLEWindowed(int input_width, int window_size, boolean map2fs) {
 		
-		super(map2fs, input_width);
+		super(map2fs, input_width, window_size);
 		
 		mul1 = new double[feature_count][feature_count];
 		mul2 = new double[feature_count][1];

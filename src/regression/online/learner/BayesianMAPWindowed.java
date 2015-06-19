@@ -18,9 +18,9 @@ public class BayesianMAPWindowed extends WindowRegressor {
 	int weight_precision_adaptation_freq = 100*w_size;
 	int update_count;
 	
-	public BayesianMAPWindowed(int input_width, boolean map2fs, double signal_stddev, double weight_stddev) {
+	public BayesianMAPWindowed(int input_width, int window_size, boolean map2fs, double signal_stddev, double weight_stddev) {
 		
-		super(map2fs, input_width);
+		super(map2fs, input_width, window_size);
 		
 		a = 1/(signal_stddev*signal_stddev);
 		b = 1/(weight_stddev*weight_stddev);
@@ -173,7 +173,8 @@ public class BayesianMAPWindowed extends WindowRegressor {
 				}
 			}
 			
-			mul1 = MatrixOp.scalarmult(MatrixOp.fast_invert_psd(MatrixOp.mat_add(MatrixOp.scalarmult(MatrixOp.mult(design_matrix, MatrixOp.transpose(design_matrix)), a), MatrixOp.fast_invert_psd(weight_cov))), a);
+			//mul1 = MatrixOp.scalarmult(MatrixOp.fast_invert_psd(MatrixOp.mat_add(MatrixOp.scalarmult(MatrixOp.mult(design_matrix, MatrixOp.transpose(design_matrix)), a), MatrixOp.fast_invert_psd(weight_cov))), a);
+			mul1 = MatrixOp.fast_invert_psd(MatrixOp.mat_add(MatrixOp.mult(design_matrix, MatrixOp.transpose(design_matrix)), MatrixOp.scalarmult(MatrixOp.fast_invert_psd(weight_cov), 1/a)));
 			
 			double[][] responses_vector = new double[w_size][1];
 			

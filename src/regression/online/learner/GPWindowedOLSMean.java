@@ -14,8 +14,8 @@ public class GPWindowedOLSMean extends GPWindowedBase {
 	double[] mean_responses; //mean_response;
 	double[][] coeff_u; // coefficients of the mean function;
 	
-	public GPWindowedOLSMean(int input_width, double signal_stddev, double weight_stddev) {
-		super(false, input_width);
+	public GPWindowedOLSMean(int input_width, int window_size, double signal_stddev, double weight_stddev) {
+		super(false, input_width, window_size);
 		
 		mean_responses = new double[w_size];
 		coeff_u = new double[3*input_width][1];

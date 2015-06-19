@@ -14,8 +14,8 @@ public class GPWindowedFixedMean extends GPWindowedBase {
 	
 	double mean;
 	
-	public GPWindowedFixedMean(int input_width, double signal_stddev, double weight_stddev) {
-		super(false, input_width);
+	public GPWindowedFixedMean(int input_width, int window_size, double signal_stddev, double weight_stddev) {
+		super(false, input_width, window_size);
 		
 		mean = 0;
 	}

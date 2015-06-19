@@ -4,7 +4,7 @@ import regression.online.util.MatrixOp;
 
 public abstract class WindowRegressor extends Regressor {
 
-	public int w_size = 40; // sliding window size
+	public int w_size; // sliding window size
 	public int w_start, w_end;
 	public int n; // number of data points in the window
 	double[][][] dp_window;
@@ -17,10 +17,11 @@ public abstract class WindowRegressor extends Regressor {
 		else n = w_end - w_start;
 	}
 	
-	public WindowRegressor(boolean map2fs, int input_width) {
+	public WindowRegressor(boolean map2fs, int input_width, int window_size) {
 		
 		super(map2fs, input_width);
 		
+		w_size = window_size;
 		dp_window = new double[w_size][feature_count][1];
 		responses = new double[w_size][1];
 		
@@ -60,5 +61,10 @@ public abstract class WindowRegressor extends Regressor {
 		
 		return weight_cov;
 		
+	}
+	
+	@Override
+	public int get_burn_in_number() {
+		return w_size;
 	}
 }
