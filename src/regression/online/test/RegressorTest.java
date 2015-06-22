@@ -197,13 +197,13 @@ public class RegressorTest {
 		
 //		regs.add(new NadaryaWatsonEstimator(input_width));
 		
-		regs.add(new KernelRegression(input_width, 250));
+//		regs.add(new KernelRegression(input_width, 100));
 		
-//		regs.add(new GPWindowedFixedMean(input_width, 0.01, 5));
+		regs.add(new GPWindowedFixedMean(input_width, 50, 0, 2));
 //		
-//		regs.add(new GPWindowedOLSMean(input_width, 0.01, 5));
+//		regs.add(new GPWindowedOLSMean(input_width, 50, 0, 5));
 //		
-//		regs.add(new GPWindowedZeroMean(input_width, 0.01, 5));
+//		regs.add(new GPWindowedZeroMean(input_width, 50, 0, 2));
 		
 		
 		for(Regressor each : regs)

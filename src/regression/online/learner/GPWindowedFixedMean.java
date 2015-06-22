@@ -14,8 +14,8 @@ public class GPWindowedFixedMean extends GPWindowedBase {
 	
 	double mean;
 	
-	public GPWindowedFixedMean(int input_width, int window_size, double signal_stddev, double weight_stddev) {
-		super(false, input_width, window_size);
+	public GPWindowedFixedMean(int input_width, int window_size, double sigma_y, double sigma_w) {
+		super(false, input_width, window_size, sigma_y, sigma_w);
 		
 		mean = 0;
 	}
@@ -49,13 +49,16 @@ public class GPWindowedFixedMean extends GPWindowedBase {
 			y += temp_column[0][w_size - n + ctr]*(responses[(w_start + ctr) % w_size][0] - mean); 
 		}
 		
-		System.out.println(mean_func(dp) + " + " + (y - mean_func(dp)));
+		//System.out.println(mean_func(dp) + " + " + (y - mean_func(dp)));
 		
-		double dif = kernel_func(dp, dp) -  MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(spare_column), k_inv), spare_column)[0][0];
-		double predictive_deviance = 0;
+		double kernel_measure = kernel_func(dp, dp) - Math.pow(Math.E, 2*latent_log_hyperparams[0]);
+		double predictive_variance = kernel_measure - MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(spare_column), k_inv), spare_column)[0][0]; 
+		double predictive_deviance;
 		
-		if(Math.abs(dif) < 0.0000001) predictive_deviance = 0;
-		else predictive_deviance = Math.sqrt(dif);
+		if(Math.abs(predictive_variance) < 0.0000001) predictive_deviance = 0;
+		else predictive_deviance = Math.sqrt(predictive_variance);
+		
+//		System.out.println(mean_func(dp) + " + " + (y - mean_func(dp)) + ", with predictive variance: " + predictive_variance);
 		
 		return new Prediction(y, predictive_deviance);
 	}
@@ -124,24 +127,26 @@ public class GPWindowedFixedMean extends GPWindowedBase {
 		
 		// computing new k_inv
 		
-		spare_var = 1.0/(spare_var - MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(spare_column), shrunk_inv), spare_column)[0][0]);
-				
-		double[][] temp_upper_left = MatrixOp.mult(shrunk_inv, MatrixOp.identitiy_add(MatrixOp.scalarmult(MatrixOp.mult(MatrixOp.mult(spare_column, MatrixOp.transpose(spare_column)), MatrixOp.transpose(shrunk_inv)), spare_var), 1));
-				
-		spare_column = MatrixOp.scalarmult(MatrixOp.mult(shrunk_inv, spare_column), -1*spare_var);		
+//		spare_var = 1.0/(spare_var - MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(spare_column), shrunk_inv), spare_column)[0][0]);
+//				
+//		double[][] temp_upper_left = MatrixOp.mult(shrunk_inv, MatrixOp.identitiy_add(MatrixOp.scalarmult(MatrixOp.mult(MatrixOp.mult(spare_column, MatrixOp.transpose(spare_column)), MatrixOp.transpose(shrunk_inv)), spare_var), 1));
+//				
+//		spare_column = MatrixOp.scalarmult(MatrixOp.mult(shrunk_inv, spare_column), -1*spare_var);		
+//		
+//		for(int ctr = 1; ctr < w_size; ctr++) {
+//			for(int ctr2 = 1; ctr2 < w_size; ctr2++) {
+//				k_inv[ctr-1][ctr2-1] = temp_upper_left[ctr-1][ctr2-1];
+//			}
+//		}
+//		
+//		for(int ctr = 1; ctr < w_size; ctr++) {
+//			k_inv[ctr-1][w_size-1] = spare_column[ctr-1][0];
+//			k_inv[w_size-1][ctr-1] = spare_column[ctr-1][0];
+//		}
+//		
+//		k_inv[w_size-1][w_size-1] = spare_var;
 		
-		for(int ctr = 1; ctr < w_size; ctr++) {
-			for(int ctr2 = 1; ctr2 < w_size; ctr2++) {
-				k_inv[ctr-1][ctr2-1] = temp_upper_left[ctr-1][ctr2-1];
-			}
-		}
-		
-		for(int ctr = 1; ctr < w_size; ctr++) {
-			k_inv[ctr-1][w_size-1] = spare_column[ctr-1][0];
-			k_inv[w_size-1][ctr-1] = spare_column[ctr-1][0];
-		}
-		
-		k_inv[w_size-1][w_size-1] = spare_var;
+		k_inv = MatrixOp.fast_invert_psd(k);
 		
 		// sliding the dp_window
 		
@@ -182,47 +187,64 @@ public class GPWindowedFixedMean extends GPWindowedBase {
 		
 		if(slide && ((update_count - w_size) % hyper_param_update_freq == 0)) { 
 			
-			double[][] responses_minus_mean_vector = new double[w_size][1];
-			double[][] responses_vector = new double[w_size][1];
+			double[][] y_u = new double[w_size][1];
 			
 			// creating response-mean vector
 			
 			double cum_avg = 0;
 			
 			for(int ctr = 0; ctr < w_size; ctr++) {
-				responses_vector[ctr][0] = responses[(w_start + ctr) % w_size][0];
-				cum_avg += responses_vector[ctr][0]; 
+				y_u[ctr][0] = responses[(w_start + ctr) % w_size][0];
+				cum_avg += y_u[ctr][0]; 
 			}
 			
 			cum_avg /= w_size;
-			
 			mean = cum_avg;
 			
 			for(int ctr = 0; ctr < w_size; ctr++)
-				responses_minus_mean_vector[ctr][0] = responses_vector[ctr][0] - mean;
+				y_u[ctr][0] -= mean;
 			
-			double marginal_lhood = get_likhood(responses_minus_mean_vector);
+			double marginal_lhood = get_likhood(y_u);
 			
 			System.out.println("Pre-Optimization Hyperparams :");
 			
-			for(int ctr = 0; ctr < hyperparams.length; ctr++) {
-				System.out.println("parameter " + ctr + " " + hyperparams[ctr]);
-			}
+			for(int ctr = 0; ctr < latent_log_hyperparams.length; ctr++)
+				System.out.println("parameter " + ctr + " " + Math.pow(Math.E, latent_log_hyperparams[ctr]));
 			
 			System.out.println("Pre-Optimization Likelihood : " + marginal_lhood);
 			
-			update_hyperparams_steepestasc(responses_minus_mean_vector, marginal_lhood);
+			double[] gradient = new double[latent_log_hyperparams.length];
+			
+			set_gradients(gradient, y_u);
+			
+			System.out.println("Pre-Optimization Hyperparameter-Log Gradients :");
+			for(int ctr = 0; ctr < latent_log_hyperparams.length; ctr++)
+				System.out.println("gradient " + ctr + " " + gradient[ctr]);
+			
+			System.out.println("--------------------------");
+			
+			//if(true) return;
+			
+			optimize_hyperparams(y_u, marginal_lhood);
+			//update_hyperparams_steepestasc(responses_minus_mean_vector, marginal_lhood);
 			//update_hyperparams_rprop(responses_minus_mean_vector, marginal_lhood);
 			
-			marginal_lhood = get_likhood(responses_minus_mean_vector);
+			System.out.println("--------------------------");
+			
+			marginal_lhood = get_likhood(y_u);
 			
 			System.out.println("Post-Optimization Hyperparams :");
 			
-			for(int ctr = 0; ctr < hyperparams.length; ctr++) {
-				System.out.println("parameter " + ctr + " " + hyperparams[ctr]);
-			}
+			for(int ctr = 0; ctr < latent_log_hyperparams.length; ctr++)
+				System.out.println("parameter " + ctr + " " + Math.pow(Math.E, latent_log_hyperparams[ctr]));
 			
 			System.out.println("Post-Optimization Likelihood : " + marginal_lhood);
+			
+			set_gradients(gradient, y_u);
+			
+			System.out.println("Post-Optimization Hyperparameter-Log Gradients :");
+			for(int ctr = 0; ctr < latent_log_hyperparams.length; ctr++)
+				System.out.println("gradient " + ctr + " " + gradient[ctr]);
 		}
 	}
 

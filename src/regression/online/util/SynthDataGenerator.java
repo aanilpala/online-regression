@@ -49,8 +49,8 @@ public class SynthDataGenerator {
 				writer.append(((Double) exp_vars[ctr2]).toString() + "\t");
 				
 				
-				target += exp_vars[ctr2]*params[ctr2] + exp_vars[ctr2]*12 + Math.pow(Math.E, exp_vars[ctr2]);
-//				target += exp_vars[ctr2]*exp_vars[ctr2]*exp_vars[ctr2]*params[ctr2] + Math.log(exp_vars[ctr2]);
+//				target += exp_vars[ctr2]*params[ctr2] + exp_vars[ctr2]*12 + Math.pow(Math.E, exp_vars[ctr2]);
+				target += exp_vars[ctr2]*exp_vars[ctr2]*exp_vars[ctr2]*params[ctr2] + Math.log(exp_vars[ctr2]);
 //				target += exp_vars[ctr2]*params[ctr2];
 			}
 			
@@ -78,7 +78,7 @@ public class SynthDataGenerator {
 			e.printStackTrace();
 		}
 		
-		SynthDataGenerator sgen = new SynthDataGenerator(writer, 2, 2500);
+		SynthDataGenerator sgen = new SynthDataGenerator(writer, 4, 500);
 		try {
 			sgen.generate();
 		} catch (IOException e) {
