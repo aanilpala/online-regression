@@ -4,7 +4,7 @@ import regression.online.model.Prediction;
 import regression.online.util.MatrixOp;
 import regression.online.util.NLInputMapper;
 
-public class BayesianPredictive extends Regressor {
+public class BayesianPredictiveMapped extends Regressor {
 	
 	double[][] mul1;
 	double[][] mul2;   // column matrix
@@ -12,11 +12,11 @@ public class BayesianPredictive extends Regressor {
 	double a; //measurement_precision;
 	double b; //weight_precision;
 	
-	public BayesianPredictive(int input_width, double signal_stddev, double weight_stddev) {
+	public BayesianPredictiveMapped(int input_width, double signal_stddev, double weight_stddev) {
 		
-		super(false, input_width);
+		super(true, input_width);
 		
-		id = 13;
+		id = 14;
 		
 		a = 1/(signal_stddev*signal_stddev);
 		b = 1/(weight_stddev*weight_stddev);
@@ -41,6 +41,8 @@ public class BayesianPredictive extends Regressor {
 	
 	public Prediction predict(double[][] dp) throws Exception {
 		
+		dp = nlinmap.map(dp);
+		
 		double pp = MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(dp), mul1), mul2)[0][0];
 		
 		double pred_variance = MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(dp), MatrixOp.scalarmult(mul1, 1/a)), dp)[0][0]; 
@@ -50,6 +52,8 @@ public class BayesianPredictive extends Regressor {
 	}
 	
 	public void update(double[][] dp, double y, Prediction prediction) throws Exception {
+		
+		dp = nlinmap.map(dp);
 				
 		// update v
 		

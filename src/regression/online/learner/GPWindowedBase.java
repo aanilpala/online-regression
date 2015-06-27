@@ -7,7 +7,7 @@ import java.util.Random;
 import regression.online.util.MatrixOp;
 
 public abstract class GPWindowedBase extends WindowRegressor{
-
+	
 	double[][] k; // gram matrix
 	double[][] k_inv; // inverse gram matrix	
 	
@@ -16,7 +16,6 @@ public abstract class GPWindowedBase extends WindowRegressor{
 	int hyperparams_count;
 	
 	double init_lengthscale = 1;
-		
 	double hyper_param_update_freq = 100*w_size;
 		
 	Random rand = new Random();
@@ -96,10 +95,10 @@ public abstract class GPWindowedBase extends WindowRegressor{
 		
 		// optimizer parameters
 		double default_step_size = 1;
-		double min_step_size = 10E-10;
+		double min_step_size = 10E-15;
 		double decayer = 0.1;
 		double step_size;
-		double max_approx_optima_gradient = 0.00000001;
+		double max_approx_optima_gradient = 0.00001;
 		boolean progression = true;
 		int reset_counter = 0;
 		int reset_limit = 5;
@@ -121,12 +120,28 @@ public abstract class GPWindowedBase extends WindowRegressor{
 					break;
 				}
 				else {
-					System.out.println("Resetting...");
+					if(verbouse) System.out.println("Resetting...");
 					while(true) {
 						// pick random values
 						for(int ctr = 2; ctr < hyperparams_count; ctr++)
 							latent_log_hyperparams[ctr] = rand.nextDouble();
-							
+						
+						// feasibility check -- EXCLUDING THE INHIBITED PARAMETERS!, ctr starts from 1
+						boolean feasible = true;
+						for (int ctr = 1; ctr < hyperparams_count; ctr++) {
+							double test = Math.pow(Math.E, 2*latent_log_hyperparams[ctr]);
+							if(Double.isInfinite(test) || Double.isNaN(test)) {
+								feasible = false;
+								break;
+							}
+						}
+						
+						// early rollback -before recomputing the covariance matrix and its inverse
+						if(!feasible) {
+							//latent_log_hyperparams = Arrays.copyOf(prev_sane_hyperparams, hyperparams_count);
+							continue;
+						}
+						
 						try {
 							recompute_k();
 							recompute_k_inv();
@@ -170,6 +185,24 @@ public abstract class GPWindowedBase extends WindowRegressor{
 				
 				for (int ctr = 0; ctr < hyperparams_count; ctr++) {
 					latent_log_hyperparams[ctr] += step_size*gradient[ctr];
+				}
+				
+				// feasibility check -- EXCLUDING THE INHIBITED PARAMETERS!, ctr starts from 1
+				boolean feasible = true;
+				for (int ctr = 1; ctr < hyperparams_count; ctr++) {
+					double test = Math.pow(Math.E, 2*latent_log_hyperparams[ctr]);
+					if(Double.isInfinite(test) || Double.isNaN(test)) {
+						step_size *= decayer;
+						feasible = false;
+						break;
+					}
+				}
+				
+				// early rollback -before recomputing the covariance matrix and its inverse
+				if(!feasible) {
+					latent_log_hyperparams = Arrays.copyOf(prev_sane_hyperparams, hyperparams_count);
+					step_size *= decayer;
+					continue;
 				}
 				
 				try{
@@ -244,9 +277,44 @@ public abstract class GPWindowedBase extends WindowRegressor{
 			sum += dif*dif*Math.pow(Math.E, -2*latent_log_hyperparams[ctr+2]);
 		}
 		
-		kernel_measure = Math.pow(Math.E, -0.5*sum)*Math.pow(Math.E, 2*latent_log_hyperparams[1]) + ((sum == 0) ? Math.pow(Math.E, 2*latent_log_hyperparams[0]) : 0);
+		double exp = Math.pow(Math.E, -0.5*sum);
+		if(sum > 0 && Double.isNaN(exp)) {
+			System.out.println("ILLEGAL KERNEL");
+		}
+		
+		kernel_measure = exp*Math.pow(Math.E, 2*latent_log_hyperparams[1]) + ((sum == 0) ? Math.pow(Math.E, 2*latent_log_hyperparams[0]) : 0);
+		
+		//System.out.println(kernel_measure);
 		
 		return kernel_measure;
+	}
+	
+	protected double kernel_func_v2(double[][] dp1, double dp2[][]) {
+		
+		double kernel_measure;
+		long sum = 0;
+			
+		for(int ctr = 0; ctr < dp2.length; ctr++) {
+			long dif = (long) ((dp2[ctr][0] - ((dp1 == null) ? 0 : dp1[ctr][0]))*100000); 
+			sum += dif*dif*Math.pow(Math.E, -2*latent_log_hyperparams[ctr+2]);
+		}
+		
+		double precision_sum = 0;
+		if(sum != 0) {
+			System.out.println("test");
+			precision_sum = sum/10000000000.0;
+		}
+		
+		kernel_measure = Math.pow(Math.E, -0.5*precision_sum)*Math.pow(Math.E, 2*latent_log_hyperparams[1]) + ((sum == 0) ? Math.pow(Math.E, 2*latent_log_hyperparams[0]) : 0);
+		
+		System.out.println(kernel_measure);
+		
+		return kernel_measure;
+	}
+	
+	@Override
+	public boolean is_tuning_time() {
+		return (slide && ((update_count - w_size) % hyper_param_update_freq == 0));
 	}
 	
 //	private void print_marginal_likelihood_vals(double[][] responses_matrix, double current_mlik) throws Exception {

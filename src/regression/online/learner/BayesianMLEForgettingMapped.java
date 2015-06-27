@@ -3,18 +3,18 @@ package regression.online.learner;
 import regression.online.model.Prediction;
 import regression.online.util.MatrixOp;
 
-public class BayesianMLEForgetting extends Regressor {
+public class BayesianMLEForgettingMapped extends Regressor {
 	
 	double[][][] v;
 	double[][][] params; // column matrices
 	
 	double forgetting_factor = 0.9; // smaller the forgetting factor, higher the forgetting is. So, when forgetting_factor is set to 1.0, there is no forgetting.
 	
-	public BayesianMLEForgetting(int input_width) {
+	public BayesianMLEForgettingMapped(int input_width) {
 		
-		super(false, input_width);
+		super(true, input_width);
 		
-		id = 3;
+		id = 4;
 		
 		v = new double[3][feature_count][feature_count];
 		params = new double[3][feature_count][1];
@@ -37,6 +37,8 @@ public class BayesianMLEForgetting extends Regressor {
 	}
 	
 	public Prediction predict(double[][] dp) throws Exception {
+		
+		dp = nlinmap.map(dp);
 		
 		double pp = MatrixOp.mult(MatrixOp.transpose(dp), params[0])[0][0];
 		double lp = MatrixOp.mult(MatrixOp.transpose(dp), params[1])[0][0];
@@ -62,6 +64,8 @@ public class BayesianMLEForgetting extends Regressor {
 	}
 	
 	public void update(double[][] dp, double y, Prediction prediction) throws Exception {
+		
+		dp = nlinmap.map(dp);
 		
 		int region;
 		

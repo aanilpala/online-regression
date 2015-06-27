@@ -12,14 +12,18 @@ import regression.online.util.MatrixPrinter;
 
 public class GPWindowedZeroMean extends GPWindowedBase {
 	
-	public GPWindowedZeroMean(int input_width, int window_size, double sigma_y, double sigma_w) {
+	public GPWindowedZeroMean(int input_width, int window_size, double sigma_y, double sigma_w, boolean verbouse) {
 		super(false, input_width, window_size, sigma_y, sigma_w);
+		
+		this.verbouse = verbouse;
 	}
 	
 	@Override
 	public Prediction predict(double[][] dp) throws Exception {
 		
 		double[][] spare_column = new double[w_size][1];
+		
+		id = 21;
 		
 		if(slide) {
 			for(int ctr = 0; ctr < w_size; ctr++) {
@@ -121,26 +125,31 @@ public class GPWindowedZeroMean extends GPWindowedBase {
 		
 		// computing new k_inv
 		
-//		spare_var = 1.0/(spare_var - MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(spare_column), shrunk_inv), spare_column)[0][0]);
-//				
-//		double[][] temp_upper_left = MatrixOp.mult(shrunk_inv, MatrixOp.identitiy_add(MatrixOp.scalarmult(MatrixOp.mult(MatrixOp.mult(spare_column, MatrixOp.transpose(spare_column)), MatrixOp.transpose(shrunk_inv)), spare_var), 1));
-//				
-//		spare_column = MatrixOp.scalarmult(MatrixOp.mult(shrunk_inv, spare_column), -1*spare_var);		
-//		
-//		for(int ctr = 1; ctr < w_size; ctr++) {
-//			for(int ctr2 = 1; ctr2 < w_size; ctr2++) {
-//				k_inv[ctr-1][ctr2-1] = temp_upper_left[ctr-1][ctr2-1];
-//			}
-//		}
-//		
-//		for(int ctr = 1; ctr < w_size; ctr++) {
-//			k_inv[ctr-1][w_size-1] = spare_column[ctr-1][0];
-//			k_inv[w_size-1][ctr-1] = spare_column[ctr-1][0];
-//		}
-//		
-//		k_inv[w_size-1][w_size-1] = spare_var;
+		spare_var = 1.0/(spare_var - MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(spare_column), shrunk_inv), spare_column)[0][0]);
+				
+		double[][] temp_upper_left = MatrixOp.mult(shrunk_inv, MatrixOp.identitiy_add(MatrixOp.scalarmult(MatrixOp.mult(MatrixOp.mult(spare_column, MatrixOp.transpose(spare_column)), MatrixOp.transpose(shrunk_inv)), spare_var), 1));
+				
+		spare_column = MatrixOp.scalarmult(MatrixOp.mult(shrunk_inv, spare_column), -1*spare_var);		
 		
-		k_inv = MatrixOp.fast_invert_psd(k);
+		for(int ctr = 1; ctr < w_size; ctr++) {
+			for(int ctr2 = 1; ctr2 < w_size; ctr2++) {
+				k_inv[ctr-1][ctr2-1] = temp_upper_left[ctr-1][ctr2-1];
+			}
+		}
+		
+		for(int ctr = 1; ctr < w_size; ctr++) {
+			k_inv[ctr-1][w_size-1] = spare_column[ctr-1][0];
+			k_inv[w_size-1][ctr-1] = spare_column[ctr-1][0];
+		}
+		
+		k_inv[w_size-1][w_size-1] = spare_var;
+		
+//		try {
+//			k_inv = MatrixOp.fast_invert_psd(k);	
+//		}
+//		catch (Exception e) {
+//			System.out.println("SHIT");
+//		}
 		
 		// sliding the dp_window
 		
@@ -179,7 +188,7 @@ public class GPWindowedZeroMean extends GPWindowedBase {
 		
 		update_count++;
 		
-		if(slide && ((update_count - w_size) % hyper_param_update_freq == 0)) { 
+		if(is_tuning_time()) { 
 			
 			double[][] y_u = new double[w_size][1];
 			
@@ -190,22 +199,22 @@ public class GPWindowedZeroMean extends GPWindowedBase {
 			
 			double marginal_lhood = get_likhood(y_u);
 			
-			System.out.println("Pre-Optimization Hyperparams :");
+			if(verbouse) System.out.println("Pre-Optimization Hyperparams :");
 			
-			for(int ctr = 0; ctr < latent_log_hyperparams.length; ctr++)
+			for(int ctr = 0; verbouse && ctr < latent_log_hyperparams.length; ctr++)
 				System.out.println("parameter " + ctr + " " + Math.pow(Math.E, latent_log_hyperparams[ctr]));
 			
-			System.out.println("Pre-Optimization Likelihood : " + marginal_lhood);
+			if(verbouse) System.out.println("Pre-Optimization Likelihood : " + marginal_lhood);
 			
 			double[] gradient = new double[latent_log_hyperparams.length];
 			
 			set_gradients(gradient, y_u);
 			
-			System.out.println("Pre-Optimization Hyperparameter-Log Gradients :");
-			for(int ctr = 0; ctr < latent_log_hyperparams.length; ctr++)
+			if(verbouse) System.out.println("Pre-Optimization Hyperparameter-Log Gradients :");
+			for(int ctr = 0; verbouse && ctr < latent_log_hyperparams.length; ctr++)
 				System.out.println("gradient " + ctr + " " + gradient[ctr]);
 			
-			System.out.println("--------------------------");
+			if(verbouse) System.out.println("--------------------------");
 			
 			//if(true) return;
 			
@@ -213,21 +222,21 @@ public class GPWindowedZeroMean extends GPWindowedBase {
 			//update_hyperparams_steepestasc(responses_minus_mean_vector, marginal_lhood);
 			//update_hyperparams_rprop(responses_minus_mean_vector, marginal_lhood);
 			
-			System.out.println("--------------------------");
+			if(verbouse) System.out.println("--------------------------");
 			
 			marginal_lhood = get_likhood(y_u);
 			
-			System.out.println("Post-Optimization Hyperparams :");
+			if(verbouse) System.out.println("Post-Optimization Hyperparams :");
 			
-			for(int ctr = 0; ctr < latent_log_hyperparams.length; ctr++)
+			for(int ctr = 0; verbouse && ctr < latent_log_hyperparams.length; ctr++)
 				System.out.println("parameter " + ctr + " " + Math.pow(Math.E, latent_log_hyperparams[ctr]));
 			
-			System.out.println("Post-Optimization Likelihood : " + marginal_lhood);
+			if(verbouse) System.out.println("Post-Optimization Likelihood : " + marginal_lhood);
 			
 			set_gradients(gradient, y_u);
 			
-			System.out.println("Post-Optimization Hyperparameter-Log Gradients :");
-			for(int ctr = 0; ctr < latent_log_hyperparams.length; ctr++)
+			if(verbouse) System.out.println("Post-Optimization Hyperparameter-Log Gradients :");
+			for(int ctr = 0; verbouse && ctr < latent_log_hyperparams.length; ctr++)
 				System.out.println("gradient " + ctr + " " + gradient[ctr]);
 		}
 	}

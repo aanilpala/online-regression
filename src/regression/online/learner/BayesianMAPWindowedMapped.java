@@ -4,7 +4,7 @@ import regression.online.model.Prediction;
 import regression.online.util.MatrixOp;
 import regression.online.util.NLInputMapper;
 
-public class BayesianMAPWindowed extends WindowRegressor {
+public class BayesianMAPWindowedMapped extends WindowRegressor {
 	
 	double[][] mul1;
 	double[][] mul2;	// column matrices
@@ -18,11 +18,11 @@ public class BayesianMAPWindowed extends WindowRegressor {
 	int weight_precision_adaptation_freq = 100*w_size;
 	int update_count;
 	
-	public BayesianMAPWindowed(int input_width, int window_size, double signal_stddev, double weight_stddev) {
+	public BayesianMAPWindowedMapped(int input_width, int window_size, double signal_stddev, double weight_stddev) {
 		
-		super(false, input_width, window_size);
+		super(true, input_width, window_size);
 		
-		id = 11;
+		id = 12;
 		
 		a = 1/(signal_stddev*signal_stddev);
 		b = 1/(weight_stddev*weight_stddev);
@@ -50,6 +50,8 @@ public class BayesianMAPWindowed extends WindowRegressor {
 	
 	public Prediction predict(double[][] dp) throws Exception {
 		
+		dp = nlinmap.map(dp);
+		
 		double pp = MatrixOp.mult(MatrixOp.transpose(dp), params)[0][0];
 		
 		double predictive_deviation = Math.sqrt(running_residual_variance*MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(dp), mul1), dp)[0][0] + running_residual_variance);
@@ -69,6 +71,8 @@ public class BayesianMAPWindowed extends WindowRegressor {
 			responses[index][0] = (y + responses[index][0])/2.0;
 			return;
 		} 
+		
+		dp = nlinmap.map(dp);
 		
 		// update mul2
 		

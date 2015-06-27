@@ -16,19 +16,21 @@ public class BayesianPredictiveWindowed extends WindowRegressor {
 	int weight_precision_adaptation_freq = 100*w_size;
 	int update_count;
 	
-	public BayesianPredictiveWindowed(int input_width, int window_size, boolean map2fs, double signal_stddev, double weight_stddev) {
+	public BayesianPredictiveWindowed(int input_width, int window_size, double sigma_y, double sigma_w) {
 		
-		super(map2fs, input_width, window_size);
+		super(false, input_width, window_size);
 		
-		a = 1/(signal_stddev*signal_stddev);
-		b = 1/(weight_stddev*weight_stddev);
+		id = 15;
+		
+		a = 1/(sigma_y*sigma_y);
+		b = 1/(sigma_w*sigma_w);
 	
 		mul1 = new double[feature_count][feature_count];
 		mul2 = new double[feature_count][1];
 		
 		for(int ctr = 0; ctr < feature_count; ctr++) {
 			for(int ctr2 = 0; ctr2 < feature_count; ctr2++) {
-				if(ctr == ctr2) mul1[ctr][ctr2] = b/a;
+				if(ctr == ctr2) mul1[ctr][ctr2] = a/b;
 				else mul1[ctr][ctr2] = 0;
 			}
 		}
@@ -43,7 +45,9 @@ public class BayesianPredictiveWindowed extends WindowRegressor {
 	
 	public Prediction predict(double[][] dp) throws Exception {
 		
-		if(map2fs) dp = nlinmap.map(dp);
+//		System.out.println(update_count);
+//		System.out.println("mul1:");
+//		MatrixPrinter.print_matrix(mul1);
 		
 		double pp = MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(dp), mul1), mul2)[0][0];
 		
@@ -128,7 +132,7 @@ public class BayesianPredictiveWindowed extends WindowRegressor {
 		
 		update_count++;
 		
-		if(slide && (update_count - w_size) % weight_precision_adaptation_freq == 0) {
+		if(is_tuning_time()) {
 			double[][] weight_cov = get_weights_cov_matrix();
 			
 			// b approximation
@@ -145,7 +149,7 @@ public class BayesianPredictiveWindowed extends WindowRegressor {
 			
 			double design_matrix[][] = new double[feature_count][w_size];  
 			
-			// making mul2 the design matrix for now
+			// computing the design matrix
 			for(int ctr = 0; ctr < w_size; ctr++) {
 				for(int ctr2 = 0; ctr2 < feature_count; ctr2++) {
 					double entry = dp_window[(w_start + ctr) % w_size][ctr2][0];
@@ -153,7 +157,13 @@ public class BayesianPredictiveWindowed extends WindowRegressor {
 				}
 			}
 			
-			//mul1 = MatrixOp.scalarmult(MatrixOp.fast_invert_psd(MatrixOp.mat_add(MatrixOp.scalarmult(MatrixOp.mult(design_matrix, MatrixOp.transpose(design_matrix)), a), MatrixOp.fast_invert_psd(weight_cov))), a);
+			// stupid stuff
+			for (int ctr = 0; ctr < weight_cov.length; ctr++) {
+				for (int ctr2 = 0; ctr2 < weight_cov.length; ctr2++)
+					if(ctr != ctr2) weight_cov[ctr][ctr2] = 0;
+			}
+			
+//			mul1 = MatrixOp.scalarmult(MatrixOp.fast_invert_psd(MatrixOp.mat_add(MatrixOp.scalarmult(MatrixOp.mult(design_matrix, MatrixOp.transpose(design_matrix)), a), MatrixOp.fast_invert_psd(weight_cov))), a);
 			mul1 = MatrixOp.fast_invert_psd(MatrixOp.mat_add(MatrixOp.mult(design_matrix, MatrixOp.transpose(design_matrix)), MatrixOp.scalarmult(MatrixOp.fast_invert_psd(weight_cov), 1/a)));
 			
 			double[][] responses_vector = new double[w_size][1];
@@ -164,7 +174,11 @@ public class BayesianPredictiveWindowed extends WindowRegressor {
 			
 			mul2 = MatrixOp.mult(design_matrix, responses_vector);
 		}
-		
+	}
+	
+	@Override
+	public boolean is_tuning_time() {
+		return slide && ((update_count - w_size) % weight_precision_adaptation_freq == 0);
 	}
 	
 }

@@ -4,7 +4,7 @@ import regression.online.model.Prediction;
 import regression.online.util.MatrixOp;
 import regression.online.util.NLInputMapper;
 
-public class BayesianMAPWindowed extends WindowRegressor {
+public class BayesianMLEWindowedMapped extends WindowRegressor {
 	
 	double[][] mul1;
 	double[][] mul2;	// column matrices
@@ -12,28 +12,19 @@ public class BayesianMAPWindowed extends WindowRegressor {
 	
 	double running_residual_variance;
 	
-	double a; //measurement_precision;
-	double b; //weight_precision;
-	
-	int weight_precision_adaptation_freq = 100*w_size;
-	int update_count;
-	
-	public BayesianMAPWindowed(int input_width, int window_size, double signal_stddev, double weight_stddev) {
+	public BayesianMLEWindowedMapped(int input_width, int window_size) {
 		
-		super(false, input_width, window_size);
+		super(true, input_width, window_size);
 		
-		id = 11;
+		id = 6;
 		
-		a = 1/(signal_stddev*signal_stddev);
-		b = 1/(weight_stddev*weight_stddev);
-	
 		mul1 = new double[feature_count][feature_count];
 		mul2 = new double[feature_count][1];
 		params = new double[feature_count][1];
 		
 		for(int ctr = 0; ctr < feature_count; ctr++) {
 			for(int ctr2 = 0; ctr2 < feature_count; ctr2++) {
-				if(ctr == ctr2) mul1[ctr][ctr2] = a/b;
+				if(ctr == ctr2) mul1[ctr][ctr2] = 10000;
 				else mul1[ctr][ctr2] = 0;
 			}
 		}
@@ -44,11 +35,12 @@ public class BayesianMAPWindowed extends WindowRegressor {
 		}
 		
 		running_residual_variance = 0;
-		update_count = 0;
 		
 	}
 	
 	public Prediction predict(double[][] dp) throws Exception {
+		
+		dp = nlinmap.map(dp);
 		
 		double pp = MatrixOp.mult(MatrixOp.transpose(dp), params)[0][0];
 		
@@ -68,7 +60,9 @@ public class BayesianMAPWindowed extends WindowRegressor {
 			
 			responses[index][0] = (y + responses[index][0])/2.0;
 			return;
-		} 
+		}
+		
+		dp = nlinmap.map(dp);
 		
 		// update mul2
 		
@@ -144,49 +138,8 @@ public class BayesianMAPWindowed extends WindowRegressor {
 		
 		running_residual_variance = squared_res_sum / 100000000.0*(n - feature_count);
 		
-		update_count++;
-		
-		if(is_tuning_time()) {
-			double[][] weight_cov = get_weights_cov_matrix();
-			
-			// b approximation
-//			double avg_var = 0;
-//			for(int ctr = 0; ctr < weight_cov.length; ctr++)
-//				avg_var += weight_cov[ctr][ctr];
-//			
-//			avg_var /= weight_cov.length;
-//			
-//			double old_b = b;
-//			b = 1/avg_var;
-			
-			// recomputing mul1, mul2 and params
-			
-			double design_matrix[][] = new double[feature_count][w_size];  
-			
-			// making mul2 the design matrix for now
-			for(int ctr = 0; ctr < w_size; ctr++) {
-				for(int ctr2 = 0; ctr2 < feature_count; ctr2++) {
-					double entry = dp_window[(w_start + ctr) % w_size][ctr2][0];
-					design_matrix[ctr2][(w_start + ctr) % w_size] = entry;
-				}
-			}
-			
-			//mul1 = MatrixOp.scalarmult(MatrixOp.fast_invert_psd(MatrixOp.mat_add(MatrixOp.scalarmult(MatrixOp.mult(design_matrix, MatrixOp.transpose(design_matrix)), a), MatrixOp.fast_invert_psd(weight_cov))), a);
-			mul1 = MatrixOp.fast_invert_psd(MatrixOp.mat_add(MatrixOp.mult(design_matrix, MatrixOp.transpose(design_matrix)), MatrixOp.scalarmult(MatrixOp.fast_invert_psd(weight_cov), 1/a)));
-			
-			double[][] responses_vector = new double[w_size][1];
-			
-			// creating response vector
-			for(int ctr = 0; ctr < n; ctr++) 
-				responses_vector[ctr][0] = responses[(w_start + ctr) % w_size][0];
-			
-			mul2 = MatrixOp.mult(design_matrix, responses_vector);
-			
-			params = MatrixOp.mult(mul1, design_matrix);
-		}
-		
 	}
-
+	
 	public void print_params() {
 		
 		if(map2fs) {
@@ -203,10 +156,5 @@ public class BayesianMAPWindowed extends WindowRegressor {
 			for(int ctr = 0; ctr < params.length; ctr++)
 				System.out.println(params[ctr][0] + " x_" + ctr);
 		}
-	}
-	
-	@Override
-	public boolean is_tuning_time() {
-		return slide && ((update_count - w_size) % weight_precision_adaptation_freq == 0);
 	}
 }

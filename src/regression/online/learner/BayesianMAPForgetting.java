@@ -16,9 +16,11 @@ public class BayesianMAPForgetting extends Regressor {
 	
 	double forgetting_factor = 0.9; // smaller the forgetting factor, higher the forgetting is. So, when forgetting_factor is set to 1.0, there is no forgetting.
 	
-	public BayesianMAPForgetting(int input_width, boolean map2fs, double signal_stddev, double weight_stddev) {
+	public BayesianMAPForgetting(int input_width, double signal_stddev, double weight_stddev) {
 		
-		super(map2fs, input_width);
+		super(false, input_width);
+		
+		id = 9;
 		
 		a = 1/(signal_stddev*signal_stddev);
 		b = 1/(weight_stddev*weight_stddev);
@@ -41,34 +43,46 @@ public class BayesianMAPForgetting extends Regressor {
 			}
 		}
 		
+		burn_in_count = 5;
+		
 	}
 	
 	public Prediction predict(double[][] dp) throws Exception {
 		
-		if(map2fs) dp = nlinmap.map(dp);
-		
 		double pp = MatrixOp.mult(MatrixOp.transpose(dp), params[0])[0][0];
-		double lb = MatrixOp.mult(MatrixOp.transpose(dp), params[1])[0][0];
-		double ub = MatrixOp.mult(MatrixOp.transpose(dp), params[2])[0][0];
+		double lp = MatrixOp.mult(MatrixOp.transpose(dp), params[1])[0][0];
+		double up = MatrixOp.mult(MatrixOp.transpose(dp), params[2])[0][0];
 		
-		if(lb == 0 && ub == 0) {
-			lb = Double.POSITIVE_INFINITY;
-			ub = Double.NEGATIVE_INFINITY;
+		
+		boolean interval_reversal = false;
+		if(lp <= pp && pp <= up) interval_reversal = false;
+		else interval_reversal = true;
+			
+//		System.out.print(interval_reversal ? "*" : "");
+//		System.out.println(lp + " - " + pp + " - " + up);
+		
+		// correction
+		if(interval_reversal) {
+			if(lp > up) lp = up;
+			if(lp > pp) up = lp;
+			if(up < pp) up = pp;
 		}
 		
-		return new Prediction(pp, ub, lb, ub, lb);
+		return new Prediction(pp, up, lp, up, lp);
 		
 	}
 	
 	public void update(double[][] dp, double y, Prediction prediction) throws Exception {
 		
-		if(map2fs) dp = nlinmap.map(dp);
+		int region;
 		
-		boolean overestimated = false;
-		boolean underestimated = false;
-		
-		if(y > prediction.upper_bound) underestimated = true;
-		if(y < prediction.lower_bound) overestimated = true;
+		if(update_count < burn_in_count) region = -1;
+		else if(y > prediction.upper_bound && y > prediction.point_prediction) region = 3;
+		else if(y >= prediction.lower_bound &&  y <= prediction.upper_bound) region = 2;
+		else if(y < prediction.lower_bound) region = 1;
+		else {
+			throw new Exception("UNDEFINED REGION");
+		}
 		
 		// FOR TESTING
 		
@@ -98,7 +112,7 @@ public class BayesianMAPForgetting extends Regressor {
 		params[0] = MatrixOp.mat_add(params[0], MatrixOp.scalarmult(MatrixOp.mult(v[0], dp), y - prediction.point_prediction)) ;
 		
 		
-		if(overestimated) {
+		if(region == -1 || region == 1 || region == 2) {
 			// update V
 			
 			double denom_1 = 1 + MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(dp), v[1]), dp)[0][0];
@@ -112,7 +126,7 @@ public class BayesianMAPForgetting extends Regressor {
 			params[1] = MatrixOp.mat_add(params[1], MatrixOp.scalarmult(MatrixOp.mult(v[1], dp), y - MatrixOp.mult(MatrixOp.transpose(dp), params[1])[0][0])) ;
 		}
 		
-		if(underestimated) {
+		if(region == -1 || region == 2 || region == 3) {
 			// update V
 			
 			double denom_1 = 1 + MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(dp), v[2]), dp)[0][0];
@@ -125,6 +139,8 @@ public class BayesianMAPForgetting extends Regressor {
 								
 			params[2] = MatrixOp.mat_add(params[2], MatrixOp.scalarmult(MatrixOp.mult(v[2], dp), y - MatrixOp.mult(MatrixOp.transpose(dp), params[2])[0][0])) ;
 		}
+		
+		update_count++;
 		
 	}
 	

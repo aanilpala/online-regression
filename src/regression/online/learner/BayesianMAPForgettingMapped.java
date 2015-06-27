@@ -1,20 +1,29 @@
 package regression.online.learner;
 
+import java.io.IOException;
+
 import regression.online.model.Prediction;
 import regression.online.util.MatrixOp;
+import regression.online.util.MatrixPrinter;
 
-public class BayesianMLEForgetting extends Regressor {
+public class BayesianMAPForgettingMapped extends Regressor {
 	
 	double[][][] v;
 	double[][][] params; // column matrices
 	
+	double a; //measurement_precision;
+	double b; //weight_precision;
+	
 	double forgetting_factor = 0.9; // smaller the forgetting factor, higher the forgetting is. So, when forgetting_factor is set to 1.0, there is no forgetting.
 	
-	public BayesianMLEForgetting(int input_width) {
+	public BayesianMAPForgettingMapped(int input_width, double signal_stddev, double weight_stddev) {
 		
-		super(false, input_width);
+		super(true, input_width);
 		
-		id = 3;
+		id = 10;
+		
+		a = 1/(signal_stddev*signal_stddev);
+		b = 1/(weight_stddev*weight_stddev);
 		
 		v = new double[3][feature_count][feature_count];
 		params = new double[3][feature_count][1];
@@ -22,7 +31,7 @@ public class BayesianMLEForgetting extends Regressor {
 		for(int ctr = 0; ctr < feature_count; ctr++) {
 			for(int ctr2 = 0; ctr2 < feature_count; ctr2++) {
 				for(int ctr3 = 0; ctr3 < 3; ctr3++) {
-					if(ctr == ctr2) v[ctr3][ctr][ctr2] = 10000;
+					if(ctr == ctr2) v[ctr3][ctr][ctr2] = b/a;
 					else v[ctr3][ctr][ctr2] = 0;
 				}
 			}
@@ -34,9 +43,13 @@ public class BayesianMLEForgetting extends Regressor {
 			}
 		}
 		
+		burn_in_count = 5;
+		
 	}
 	
 	public Prediction predict(double[][] dp) throws Exception {
+		
+		dp = nlinmap.map(dp);
 		
 		double pp = MatrixOp.mult(MatrixOp.transpose(dp), params[0])[0][0];
 		double lp = MatrixOp.mult(MatrixOp.transpose(dp), params[1])[0][0];
@@ -62,6 +75,8 @@ public class BayesianMLEForgetting extends Regressor {
 	}
 	
 	public void update(double[][] dp, double y, Prediction prediction) throws Exception {
+		
+		dp = nlinmap.map(dp);
 		
 		int region;
 		

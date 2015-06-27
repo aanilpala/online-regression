@@ -10,7 +10,6 @@ public abstract class WindowRegressor extends Regressor {
 	double[][][] dp_window;
 	double[][] responses;
 	boolean slide;
-	int update_count;
 	
 	public void count_dps_in_window() {
 		if(slide) n = w_size;
@@ -22,6 +21,7 @@ public abstract class WindowRegressor extends Regressor {
 		super(map2fs, input_width);
 		
 		w_size = window_size;
+		burn_in_count = window_size;
 		dp_window = new double[w_size][feature_count][1];
 		responses = new double[w_size][1];
 		
@@ -62,9 +62,5 @@ public abstract class WindowRegressor extends Regressor {
 		return weight_cov;
 		
 	}
-	
-	@Override
-	public int get_burn_in_number() {
-		return w_size;
-	}
+
 }

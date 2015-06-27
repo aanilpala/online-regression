@@ -12,9 +12,11 @@ public class BayesianMLEWindowed extends WindowRegressor {
 	
 	double running_residual_variance;
 	
-	public BayesianMLEWindowed(int input_width, int window_size, boolean map2fs) {
+	public BayesianMLEWindowed(int input_width, int window_size) {
 		
-		super(map2fs, input_width, window_size);
+		super(false, input_width, window_size);
+		
+		id = 5;
 		
 		mul1 = new double[feature_count][feature_count];
 		mul2 = new double[feature_count][1];
@@ -38,8 +40,6 @@ public class BayesianMLEWindowed extends WindowRegressor {
 	
 	public Prediction predict(double[][] dp) throws Exception {
 		
-		if(map2fs) dp = nlinmap.map(dp);
-		
 		double pp = MatrixOp.mult(MatrixOp.transpose(dp), params)[0][0];
 		
 		double predictive_deviation = Math.sqrt(running_residual_variance*MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(dp), mul1), dp)[0][0] + running_residual_variance);
@@ -59,8 +59,6 @@ public class BayesianMLEWindowed extends WindowRegressor {
 			responses[index][0] = (y + responses[index][0])/2.0;
 			return;
 		}
-		
-		if(map2fs) dp = nlinmap.map(dp);
 		
 		// update mul2
 		

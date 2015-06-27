@@ -5,7 +5,7 @@ import java.util.Arrays;
 import regression.online.model.Prediction;
 
 public class KernelRegression extends WindowRegressor {
-
+	
 	double[] h; // bandwidths;
 	double[] density_estimates;
 	double[] contributions;
@@ -16,6 +16,8 @@ public class KernelRegression extends WindowRegressor {
 	public KernelRegression(int input_width, int window_size) {
 		
 		super(false, input_width, window_size);
+		
+		id = 25;
 		
 		h = new double[input_width];
 		density_estimates = new double[w_size];
@@ -118,7 +120,7 @@ public class KernelRegression extends WindowRegressor {
 		count_dps_in_window();
 		
 		update_count++;
-		if((update_count - w_size) % hyper_param_tuning_freq == 0) {
+		if(is_tuning_time()) {
 			tune_hyper_params();
 			recompute_past_kernel_densities();
 		}
@@ -237,6 +239,11 @@ public class KernelRegression extends WindowRegressor {
 		double kernel_measure = mult / Math.pow(1000, dim); 
 		
 		return kernel_measure;
+	}
+	
+	@Override
+	public boolean is_tuning_time() {
+		return ((update_count - w_size) % hyper_param_tuning_freq == 0);
 	}
 	
 	
