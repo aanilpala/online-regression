@@ -91,7 +91,11 @@ public class NLInputMapper {
 			features[ctr][0] = 1.0f;
 			for(int ctr2 = 0; ctr2 < exp; ctr2++) {
 				if(input_mapping[ctr][ctr2] >= 0) features[ctr][0] *= input[input_mapping[ctr][ctr2]][0];
-				else if(input_mapping[ctr][ctr2] >= -1*(input_dim)) features[ctr][0] *= Math.log(input[-1*input_mapping[ctr][ctr2]-1][0]);
+				else if(input_mapping[ctr][ctr2] >= -1*(input_dim)) {
+					double value = input[-1*input_mapping[ctr][ctr2]-1][0];
+					if(value == 0) features[ctr][0] = 0;
+					else features[ctr][0] *= Math.log(input[-1*input_mapping[ctr][ctr2]-1][0]);
+				}
 				else if(input_mapping[ctr][ctr2] > Integer.MIN_VALUE) features[ctr][0] *= Math.sqrt(input[-1*(Integer.MIN_VALUE - input_mapping[ctr][ctr2]) - 1][0]);
 			}
 		}

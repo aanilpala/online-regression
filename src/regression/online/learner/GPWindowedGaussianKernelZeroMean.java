@@ -10,30 +10,30 @@ import regression.online.util.MatrixOp;
 import regression.online.util.MatrixPrinter;
 
 
-public class GPWindowedZeroMean extends GPWindowedBase {
+public class GPWindowedGaussianKernelZeroMean extends GPWindowedBase {
 	
-	public GPWindowedZeroMean(int input_width, int window_size, double sigma_y, double sigma_w, boolean verbouse) {
-		super(false, input_width, window_size, sigma_y, sigma_w);
+	public GPWindowedGaussianKernelZeroMean(int input_width, int window_size, double sigma_y, double sigma_w, boolean verbouse, int tuning_mode, boolean update_inhibator) {
+		super(false, input_width, window_size, sigma_y, sigma_w, tuning_mode, true, update_inhibator);
 		
 		this.verbouse = verbouse;
 	}
 	
 	@Override
-	public Prediction predict(double[][] dp) throws Exception {
+	public Prediction predict(double[][] org_dp) throws Exception {
+		
+		double[][] dp = scale_input(org_dp);
 		
 		double[][] spare_column = new double[w_size][1];
 		
-		id = 21;
-		
 		if(slide) {
 			for(int ctr = 0; ctr < w_size; ctr++) {
-				spare_column[ctr][0] = kernel_func(dp_window[(w_start + ctr) % w_size], dp);
+				spare_column[ctr][0] = gaussian_kernel(dp_window[(w_start + ctr) % w_size], dp);
 			}
 		}
 		else {
 			int ctr = 0;
 			for(; ctr < n; ctr++) {
-				spare_column[w_size - 1 - ctr][0] = kernel_func(dp_window[w_end - 1 - ctr], dp);
+				spare_column[w_size - 1 - ctr][0] = gaussian_kernel(dp_window[w_end - 1 - ctr], dp);
 			}
 			for(; ctr < w_size - 1; ctr++) {
 				spare_column[w_size - 1 - ctr][0] = 0;
@@ -49,20 +49,24 @@ public class GPWindowedZeroMean extends GPWindowedBase {
 			y += temp_column[0][w_size - n + ctr]*(responses[(w_start + ctr) % w_size][0]); 
 		}
 		
-		double kernel_measure = kernel_func(dp, dp) - Math.pow(Math.E, 2*latent_log_hyperparams[0]);
-		double predictive_variance = kernel_measure - MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(spare_column), k_inv), spare_column)[0][0]; 
-		double predictive_deviance;
+		double kernel_measure = gaussian_kernel(dp, dp) - Math.pow(Math.E, 2*latent_log_hyperparams[0]);
 		
-		if(Math.abs(predictive_variance) < 0.0000001) predictive_deviance = 0;
+		double predictive_variance = kernel_measure - MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(spare_column), k_inv), spare_column)[0][0]; 
+		double predictive_deviance;		
+		
+		if(predictive_variance < 10E-20) predictive_deviance = 0;  // suspicious!
 		else predictive_deviance = Math.sqrt(predictive_variance);
 		
-//		System.out.println(mean_func(dp) + " + " + (y - mean_func(dp)) + ", with predictive variance: " + predictive_variance);
-		
-		return new Prediction(y, predictive_deviance);
+		return new Prediction(target_postscaler(y), target_postscaler(predictive_deviance));
 	}
 	
 	@Override
-	public void update(double[][] dp, double y, Prediction prediction) throws Exception {
+	public void update(double[][] org_dp, double org_y, Prediction prediction) throws Exception {
+		
+		if(update_count > burn_in_count && update_inhibator) return;
+		
+		double[][] dp = scale_input(org_dp);
+		double y = target_prescaler(org_y);
 		
 		int index = getIndexForDp(dp);
 		
@@ -96,13 +100,13 @@ public class GPWindowedZeroMean extends GPWindowedBase {
 		
 		if(slide) {
 			for(int ctr = 1; ctr < w_size; ctr++) {
-				spare_column[ctr-1][0] = kernel_func(dp_window[(w_start + ctr) % w_size], dp);
+				spare_column[ctr-1][0] = gaussian_kernel(dp_window[(w_start + ctr) % w_size], dp);
 			}
 		}
 		else {
 			int ctr = 0;
 			for(; ctr < n; ctr++) {
-				spare_column[w_size - 2 - ctr][0] = kernel_func(dp_window[w_end - 1 - ctr], dp);
+				spare_column[w_size - 2 - ctr][0] = gaussian_kernel(dp_window[w_end - 1 - ctr], dp);
 			}
 			for(; ctr < w_size - 1; ctr++) {
 				spare_column[w_size - 2 - ctr][0] = 0; //kernel_func(null, dp);;
@@ -120,7 +124,7 @@ public class GPWindowedZeroMean extends GPWindowedBase {
 			k[w_size-1][ctr-1] = spare_column[ctr-1][0];
 		}
 		
-		spare_var = kernel_func(dp, dp);
+		spare_var = gaussian_kernel(dp, dp);
 		k[w_size-1][w_size-1] = spare_var;
 		
 		// computing new k_inv
@@ -188,7 +192,19 @@ public class GPWindowedZeroMean extends GPWindowedBase {
 		
 		update_count++;
 		
+		update_running_means(org_dp, org_y);
+		if(slide) update_prediction_errors(org_y, prediction.point_prediction);
+		
 		if(is_tuning_time()) { 
+			
+			revert_windows();
+			
+			update_scaling_factors();
+			
+			scale_windows();
+			
+			recompute_k();
+			recompute_k_inv();
 			
 			double[][] y_u = new double[w_size][1];
 			

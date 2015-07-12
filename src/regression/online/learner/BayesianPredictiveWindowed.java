@@ -12,15 +12,11 @@ public class BayesianPredictiveWindowed extends WindowRegressor {
 	
 	double a; //measurement_precision;
 	double b; //weight_precision;
+
 	
-	int weight_precision_adaptation_freq = 100*w_size;
-	int update_count;
-	
-	public BayesianPredictiveWindowed(int input_width, int window_size, double sigma_y, double sigma_w) {
+	public BayesianPredictiveWindowed(int input_width, int window_size, double sigma_y, double sigma_w, int tuning_mode, boolean update_inhibator) {
 		
-		super(false, input_width, window_size);
-		
-		id = 15;
+		super(false, input_width, window_size, tuning_mode, update_inhibator);
 		
 		a = 1/(sigma_y*sigma_y);
 		b = 1/(sigma_w*sigma_w);
@@ -68,9 +64,7 @@ public class BayesianPredictiveWindowed extends WindowRegressor {
 			responses[index][0] = (y + responses[index][0])/2.0;
 			return;
 		}
-		
-		if(map2fs) dp = nlinmap.map(dp);
-				
+						
 		// update v
 		
 		mul2 = MatrixOp.mat_add(mul2, MatrixOp.scalarmult(dp, y));
@@ -131,6 +125,7 @@ public class BayesianPredictiveWindowed extends WindowRegressor {
 		}
 		
 		update_count++;
+		update_prediction_errors(y, prediction.point_prediction);
 		
 		if(is_tuning_time()) {
 			double[][] weight_cov = get_weights_cov_matrix();
@@ -174,11 +169,6 @@ public class BayesianPredictiveWindowed extends WindowRegressor {
 			
 			mul2 = MatrixOp.mult(design_matrix, responses_vector);
 		}
-	}
-	
-	@Override
-	public boolean is_tuning_time() {
-		return slide && ((update_count - w_size) % weight_precision_adaptation_freq == 0);
 	}
 	
 }

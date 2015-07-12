@@ -92,25 +92,61 @@ public class MatrixOp {
 		return ans;
 	}
 	
-	public static double[][] mult(double m1[][], double m2[][]) throws Exception{
-		   if(m1.length == 0) return new double[0][0];
-		   if(m1[0].length != m2.length) throw new Exception("Incompatible sized matrices for multiplication");
+	public static double[][] mult_precision(double m1[][], double m2[][]) throws Exception{
+		
+		if(m1.length == 0) return new double[0][0];
+		if(m1[0].length != m2.length) throw new Exception("Incompatible sized matrices for multiplication");
 		 
-		   int n = m1[0].length;
-		   int m = m1.length;
-		   int p = m2[0].length;
+		int n = m1[0].length;
+		int m = m1.length;
+		int p = m2[0].length;
 		 
-		   double ans[][] = new double[m][p];
-		 
-		   for(int i = 0;i < m;i++){
-		      for(int j = 0;j < p;j++){
-		         for(int k = 0;k < n;k++){
-		            ans[i][j] += m1[i][k] * m2[k][j];
-		         }
-		      }
-		   }
-		   return ans;
+		double ans[][] = new double[m][p];
+		long scaled_ans[][] = new long[m][p];
+//		int target_precision = 5;
+//		double scaler = Math.pow(10.0, target_precision);
+		
+		long scaler = 1000000000L;
+		
+		for(int i = 0;i < m;i++){
+			for(int j = 0;j < p;j++){
+				for(int k = 0;k < n;k++){
+					scaled_ans[i][j] += ((long) m1[i][k]*scaler)*((long) m2[k][j]*scaler);
+				}
+			}
 		}
+		
+		for(int i = 0; i < m; i++){
+			for(int j = 0; j < p; j++){
+				ans[i][j] = (1.0/(scaler*scaler))*scaled_ans[i][j];
+			}
+		}
+		
+		return ans;
+		
+	}
+	
+	public static double[][] mult(double m1[][], double m2[][]) throws Exception{
+		
+		if(m1.length == 0) return new double[0][0];
+		if(m1[0].length != m2.length) throw new Exception("Incompatible sized matrices for multiplication");
+		 
+		int n = m1[0].length;
+		int m = m1.length;
+		int p = m2[0].length;
+		 
+		double ans[][] = new double[m][p];
+		 
+		for(int i = 0;i < m;i++){
+			for(int j = 0;j < p;j++){
+				for(int k = 0;k < n;k++){
+					ans[i][j] += m1[i][k] * m2[k][j];
+				}
+			}
+		}
+		
+		return ans;
+	}
 
 	public static boolean isEqual(double[][] m1, double[][] m2) {
 		
@@ -161,7 +197,8 @@ public class MatrixOp {
                 for (int k = i - 1; k >= 0; k--)
                     sum -= (result[i][k] * result[j][k]);
                 if (i == j) {
-                    if (sum < 0.0) throw new Exception("Matrix is not positive definite");
+                    if (sum < 0.0) 
+                    	throw new Exception("Matrix is not positive definite");
                     else p[i] = Math.sqrt(sum);
                 }
                 else result[j][i] = sum / p[i];

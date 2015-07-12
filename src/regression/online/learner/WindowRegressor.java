@@ -11,16 +11,24 @@ public abstract class WindowRegressor extends Regressor {
 	double[][] responses;
 	boolean slide;
 	
+	int tuning_mode;
+	int tuning_freq;
+	
 	public void count_dps_in_window() {
 		if(slide) n = w_size;
 		else n = w_end - w_start;
 	}
 	
-	public WindowRegressor(boolean map2fs, int input_width, int window_size) {
+	public WindowRegressor(boolean map2fs, int input_width, int window_size, int tuning_mode, boolean update_inhibator) {
 		
-		super(map2fs, input_width);
+		super(map2fs, input_width, update_inhibator);
+		
+		if(!update_inhibator) this.name += "WSIZE" + window_size;
+		
+		this.tuning_mode = tuning_mode;
 		
 		w_size = window_size;
+		tuning_freq = 10*w_size;
 		burn_in_count = window_size;
 		dp_window = new double[w_size][feature_count][1];
 		responses = new double[w_size][1];
@@ -37,6 +45,24 @@ public abstract class WindowRegressor extends Regressor {
 			if(MatrixOp.isEqual(dp, dp_window[(w_start + ctr) % w_size])) return (w_start + ctr) % w_size;
 		
 		return -1;
+	}
+	
+	protected void scale_windows() {
+		
+		for(int ptr = w_start, ctr = 0; ctr < n; ptr = (ptr + 1) % w_size, ctr++) {
+			dp_window[ptr] = scale_input(dp_window[ptr]);
+			responses[ptr][0] = target_prescaler(responses[ptr][0]);
+		}
+		
+	}
+	
+	protected void revert_windows() {
+		
+		for(int ptr = w_start, ctr = 0; ctr < n; ptr = (ptr + 1) % w_size, ctr++) {
+			dp_window[ptr] = revert_input(dp_window[ptr]);
+			responses[ptr][0] = target_postscaler(responses[ptr][0]);
+		}
+		
 	}
 	
 	protected double[][] get_weights_cov_matrix() throws Exception {
@@ -61,6 +87,26 @@ public abstract class WindowRegressor extends Regressor {
 		
 		return weight_cov;
 		
+	}
+	
+	@Override
+	public boolean is_tuning_time() {
+		if(!slide) return false;
+		else if(tuning_mode == -2) return false;
+		else if(tuning_mode == -1) return (update_count == w_size);
+		else if(tuning_mode == 0) return (update_count - w_size) % tuning_freq == 0;
+		else if(tuning_mode == 1) return (update_count == w_size) || high_error();
+		else return false;
+	}
+	
+	@Override
+	public boolean was_just_tuned() {
+		if(!slide) return false;
+		else if(tuning_mode == -2) return false;
+		else if(tuning_mode == -1) return (update_count == w_size);
+		else if(tuning_mode == 0) return (update_count - w_size) % tuning_freq == 0;
+		else if(tuning_mode == 1) return (update_count == w_size) || (update_count != w_size && prediction_count == 0);
+		else return false;
 	}
 
 }

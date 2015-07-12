@@ -16,11 +16,9 @@ public class BayesianMAPForgetting extends Regressor {
 	
 	double forgetting_factor = 0.9; // smaller the forgetting factor, higher the forgetting is. So, when forgetting_factor is set to 1.0, there is no forgetting.
 	
-	public BayesianMAPForgetting(int input_width, double signal_stddev, double weight_stddev) {
+	public BayesianMAPForgetting(int input_width, double signal_stddev, double weight_stddev, boolean update_inhibator) {
 		
-		super(false, input_width);
-		
-		id = 9;
+		super(false, input_width, update_inhibator);
 		
 		a = 1/(signal_stddev*signal_stddev);
 		b = 1/(weight_stddev*weight_stddev);

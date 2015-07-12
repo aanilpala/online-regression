@@ -12,11 +12,11 @@ public class BayesianPredictive extends Regressor {
 	double a; //measurement_precision;
 	double b; //weight_precision;
 	
-	public BayesianPredictive(int input_width, double signal_stddev, double weight_stddev) {
+	public BayesianPredictive(int input_width, double signal_stddev, double weight_stddev, int explicit_burn_in_count, boolean update_inhibator) {
 		
-		super(false, input_width);
+		super(false, input_width, update_inhibator);
 		
-		id = 13;
+		burn_in_count = explicit_burn_in_count;
 		
 		a = 1/(signal_stddev*signal_stddev);
 		b = 1/(weight_stddev*weight_stddev);

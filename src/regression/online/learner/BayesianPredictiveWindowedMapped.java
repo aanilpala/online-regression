@@ -13,14 +13,10 @@ public class BayesianPredictiveWindowedMapped extends WindowRegressor {
 	double a; //measurement_precision;
 	double b; //weight_precision;
 	
-	int weight_precision_adaptation_freq = 100*w_size;
-	int update_count;
 	
-	public BayesianPredictiveWindowedMapped(int input_width, int window_size, double sigma_y, double sigma_w) {
+	public BayesianPredictiveWindowedMapped(int input_width, int window_size, double sigma_y, double sigma_w, int tuning_mode, boolean update_inhibator) {
 		
-		super(true, input_width, window_size);
-		
-		id = 16;
+		super(true, input_width, window_size, tuning_mode, update_inhibator);
 		
 		a = 1/(sigma_y*sigma_y);
 		b = 1/(sigma_w*sigma_w);
@@ -176,11 +172,6 @@ public class BayesianPredictiveWindowedMapped extends WindowRegressor {
 			
 			mul2 = MatrixOp.mult(design_matrix, responses_vector);
 		}
-	}
-	
-	@Override
-	public boolean is_tuning_time() {
-		return slide && ((update_count - w_size) % weight_precision_adaptation_freq == 0);
 	}
 	
 }

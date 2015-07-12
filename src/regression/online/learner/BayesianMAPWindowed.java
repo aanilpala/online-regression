@@ -15,14 +15,9 @@ public class BayesianMAPWindowed extends WindowRegressor {
 	double a; //measurement_precision;
 	double b; //weight_precision;
 	
-	int weight_precision_adaptation_freq = 100*w_size;
-	int update_count;
-	
-	public BayesianMAPWindowed(int input_width, int window_size, double signal_stddev, double weight_stddev) {
+	public BayesianMAPWindowed(int input_width, int window_size, double signal_stddev, double weight_stddev, int tuning_mode, boolean update_inhibator) {
 		
-		super(false, input_width, window_size);
-		
-		id = 11;
+		super(false, input_width, window_size, tuning_mode, update_inhibator);
 		
 		a = 1/(signal_stddev*signal_stddev);
 		b = 1/(weight_stddev*weight_stddev);
@@ -48,17 +43,23 @@ public class BayesianMAPWindowed extends WindowRegressor {
 		
 	}
 	
-	public Prediction predict(double[][] dp) throws Exception {
+public Prediction predict(double[][] org_dp) throws Exception {
+		
+		double[][] dp = scale_input(org_dp);
 		
 		double pp = MatrixOp.mult(MatrixOp.transpose(dp), params)[0][0];
 		
 		double predictive_deviation = Math.sqrt(running_residual_variance*MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(dp), mul1), dp)[0][0] + running_residual_variance);
 		
-		return new Prediction(pp, predictive_deviation);
+		return new Prediction(target_postscaler(pp), target_postscaler(predictive_deviation));
 		
 	}
 	
-	public void update(double[][] dp, double y, Prediction prediction) throws Exception {
+	public void update(double[][] org_dp, double org_y, Prediction prediction) throws Exception {
+		
+		double[][] dp = scale_input(org_dp);
+		
+		double y = target_prescaler(org_y);
 		
 		int index = getIndexForDp(dp);
 		
@@ -140,13 +141,23 @@ public class BayesianMAPWindowed extends WindowRegressor {
 		long squared_res_sum = 0;
 		
 		for(int ptr = w_start, ctr = 0; ctr < n; ptr = (ptr + 1) % w_size, ctr++)
-			squared_res_sum = (long) Math.pow((responses[ptr][0] - MatrixOp.mult(MatrixOp.transpose(dp), params)[0][0])*10000, 2);
+			squared_res_sum += (long) Math.pow((responses[ptr][0] - MatrixOp.mult(MatrixOp.transpose(dp_window[ptr]), params)[0][0])*10000, 2);
 		
-		running_residual_variance = squared_res_sum / 100000000.0*(n - feature_count);
+		running_residual_variance = squared_res_sum / (100000000.0*n);
 		
 		update_count++;
 		
+		update_running_means(org_dp, org_y);
+		if(slide) update_prediction_errors(org_y, prediction.point_prediction);
+		
 		if(is_tuning_time()) {
+			
+			revert_windows();
+			
+			update_scaling_factors();
+			
+			scale_windows();
+			
 			double[][] weight_cov = get_weights_cov_matrix();
 			
 			// b approximation
@@ -183,6 +194,13 @@ public class BayesianMAPWindowed extends WindowRegressor {
 			mul2 = MatrixOp.mult(design_matrix, responses_vector);
 			
 			params = MatrixOp.mult(mul1, design_matrix);
+			
+			squared_res_sum = 0;
+			
+			for(int ptr = w_start, ctr = 0; ctr < n; ptr = (ptr + 1) % w_size, ctr++)
+				squared_res_sum += (long) Math.pow((responses[ptr][0] - MatrixOp.mult(MatrixOp.transpose(dp_window[ptr]), params)[0][0])*10000, 2);
+			
+			running_residual_variance = squared_res_sum / (100000000.0*n);
 		}
 		
 	}
@@ -205,8 +223,4 @@ public class BayesianMAPWindowed extends WindowRegressor {
 		}
 	}
 	
-	@Override
-	public boolean is_tuning_time() {
-		return slide && ((update_count - w_size) % weight_precision_adaptation_freq == 0);
-	}
 }

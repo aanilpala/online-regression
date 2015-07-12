@@ -15,6 +15,9 @@ public class TestCase {
 	int input_width;
 	String data_set_name;
 	
+//	double input_scaler = 0.001;
+//	double output_scaler = 0.001;
+	
 	public TestCase(File file) throws Exception {
 		data_points = new ArrayList<double[][]>();
 		responses = new ArrayList<Double>();
@@ -33,7 +36,7 @@ public class TestCase {
 	    	data_points.add(dp);
 	    	
 	    	String[] response_tokens = tokens[1].split("\t");
-	    	double response = Double.parseDouble(response_tokens[response_tokens.length-1].trim()); // in ms
+	    	double response = Double.parseDouble(response_tokens[response_tokens.length-1].trim());
 	    	responses.add(response);
 		}
 		

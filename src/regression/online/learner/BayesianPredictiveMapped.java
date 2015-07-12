@@ -12,11 +12,11 @@ public class BayesianPredictiveMapped extends Regressor {
 	double a; //measurement_precision;
 	double b; //weight_precision;
 	
-	public BayesianPredictiveMapped(int input_width, double signal_stddev, double weight_stddev) {
+	public BayesianPredictiveMapped(int input_width, double signal_stddev, double weight_stddev, int explicit_burn_in_count, boolean update_inhibator) {
 		
-		super(true, input_width);
+		super(true, input_width, update_inhibator);
 		
-		id = 14;
+		burn_in_count = explicit_burn_in_count;
 		
 		a = 1/(signal_stddev*signal_stddev);
 		b = 1/(weight_stddev*weight_stddev);

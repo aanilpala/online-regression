@@ -11,13 +11,10 @@ public class KernelRegression extends WindowRegressor {
 	double[] contributions;
 	
 	double init_bandwidth = 1;
-	int hyper_param_tuning_freq = 100*w_size;
 	
-	public KernelRegression(int input_width, int window_size) {
+	public KernelRegression(int input_width, int window_size, int tuning_mode, boolean update_inhibator) {
 		
-		super(false, input_width, window_size);
-		
-		id = 25;
+		super(false, input_width, window_size, tuning_mode, update_inhibator);
 		
 		h = new double[input_width];
 		density_estimates = new double[w_size];
@@ -28,9 +25,11 @@ public class KernelRegression extends WindowRegressor {
 	}
 	
 	@Override
-	public Prediction predict(double[][] dp) throws Exception {
+	public Prediction predict(double[][] org_dp) throws Exception {
 		
 		if(!slide && w_start == w_end) return new Prediction();
+		
+		double[][] dp = scale_input(org_dp);
 		
 		double pp = 0;
 		double denom = 0;
@@ -66,21 +65,26 @@ public class KernelRegression extends WindowRegressor {
 		
 		double predictive_deviance = Math.sqrt(((Math.pow(4*Math.PI, -0.5*feature_count))*sigma_square)/(denom));
 		
-		return new Prediction(pp, predictive_deviance);
+		return new Prediction(target_postscaler(pp), target_postscaler(predictive_deviance));
 	}
 	
 	@Override
-	public void update(double[][] dp, double y, Prediction prediction) throws Exception {
+	public void update(double[][] org_dp, double org_y, Prediction prediction) throws Exception {
 		
-		int index = getIndexForDp(dp);
+		if(update_count > burn_in_count && update_inhibator) return;
 		
-		if(index != -1) {
-			// reject the update
-			// avg the response for the duplicate point
-			
-			responses[index][0] = (y + responses[index][0])/2.0;
-			return;
-		} 
+		double[][] dp = scale_input(org_dp);
+		double y = target_prescaler(org_y);
+		
+//		int index = getIndexForDp(dp);
+//		
+//		if(index != -1) {
+//			// reject the update
+//			// avg the response for the duplicate point
+//			
+//			responses[index][0] = (y + responses[index][0])/2.0;
+//			return;
+//		} 
 		
 		if(slide) {
 			for(int ptr = w_start, ctr = 0; ctr < n-1; ptr = (ptr + 1) % w_size, ctr++) {
@@ -120,6 +124,10 @@ public class KernelRegression extends WindowRegressor {
 		count_dps_in_window();
 		
 		update_count++;
+		
+		update_running_means(org_dp, org_y);
+		if(slide) update_prediction_errors(org_y, prediction.point_prediction);
+		
 		if(is_tuning_time()) {
 			tune_hyper_params();
 			recompute_past_kernel_densities();
@@ -152,6 +160,14 @@ public class KernelRegression extends WindowRegressor {
 
 	private void tune_hyper_params() throws Exception {
 		
+		revert_windows();
+		
+		update_scaling_factors();
+		
+		scale_windows();
+		
+		recompute_past_kernel_densities();
+		
 		// get rss with the current bandwidths
 		double target_rss = get_hold_one_out_rss(h);
 		//System.out.println(target_rss);
@@ -166,9 +182,9 @@ public class KernelRegression extends WindowRegressor {
 			experimental_bandwidth_array[ctr2] = 0;
 		}
 		
-		double step_size_factor = 0.001;
-		double end_factor = 0.1;
-		double start_factor = 0.001;
+		double step_size_factor = 0.05;
+		double end_factor = 2;
+		double start_factor = 0.05;
 		double opt_factor = -1;
 		
 		for(double cur_factor = start_factor; cur_factor < end_factor; cur_factor += step_size_factor) {
@@ -187,6 +203,8 @@ public class KernelRegression extends WindowRegressor {
 			}
 			
 		}
+		
+//		System.out.println(opt_factor);
 		
 		if(opt_factor != -1.0) {
 			for(int ctr2 = 0; ctr2 < feature_count; ctr2++) {
@@ -241,10 +259,6 @@ public class KernelRegression extends WindowRegressor {
 		return kernel_measure;
 	}
 	
-	@Override
-	public boolean is_tuning_time() {
-		return ((update_count - w_size) % hyper_param_tuning_freq == 0);
-	}
 	
 	
 

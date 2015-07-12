@@ -1,5 +1,6 @@
 package regression.online.learner;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Random;
 
@@ -9,37 +10,34 @@ import regression.online.util.MatrixOp;
 import regression.online.util.MatrixPrinter;
 
 
-public class GPWindowedOLSMean extends GPWindowedBase {
+public class GPWindowedGaussianKernelAvgMean extends GPWindowedBase {
 	
-	double[] mean_responses; //mean_response;
-	double[][] coeff_u; // coefficients of the mean function;
+	double running_window_sum;
 	
-	public GPWindowedOLSMean(int input_width, int window_size, double sigma_y, double sigma_w, boolean verbouse) {
-		super(false, input_width, window_size, sigma_y, sigma_w);
-		
-		id = 20;
+	public GPWindowedGaussianKernelAvgMean(int input_width, int window_size, double sigma_y, double sigma_w, boolean verbouse, int tuning_mode, boolean update_inhibator) {
+		super(false, input_width, window_size, sigma_y, sigma_w, tuning_mode, true, update_inhibator);
 		
 		this.verbouse = verbouse;
 		
-		mean_responses = new double[w_size];
-		coeff_u = new double[3*input_width][1];
-		
+		running_window_sum = 0;
 	}
 	
 	@Override
-	public Prediction predict(double[][] dp) throws Exception {
+	public Prediction predict(double[][] org_dp) throws Exception {
+		
+		double[][] dp = scale_input(org_dp);
 		
 		double[][] spare_column = new double[w_size][1];
 		
 		if(slide) {
 			for(int ctr = 0; ctr < w_size; ctr++) {
-				spare_column[ctr][0] = kernel_func(dp_window[(w_start + ctr) % w_size], dp);
+				spare_column[ctr][0] = gaussian_kernel(dp_window[(w_start + ctr) % w_size], dp);
 			}
 		}
 		else {
 			int ctr = 0;
 			for(; ctr < n; ctr++) {
-				spare_column[w_size - 1 - ctr][0] = kernel_func(dp_window[w_end - 1 - ctr], dp);
+				spare_column[w_size - 1 - ctr][0] = gaussian_kernel(dp_window[w_end - 1 - ctr], dp);
 			}
 			for(; ctr < w_size - 1; ctr++) {
 				spare_column[w_size - 1 - ctr][0] = 0;
@@ -50,32 +48,40 @@ public class GPWindowedOLSMean extends GPWindowedBase {
 		
 		double y = mean_func(dp);
 		
-		for(int ctr = 0; ctr < n; ctr++) {
-			y += temp_column[0][w_size - n + ctr]*(responses[(w_start + ctr) % w_size][0] - mean_responses[(w_start + ctr) % w_size]);
-		}
+		for(int ctr = 0; ctr < n; ctr++)
+			y += temp_column[0][w_size - n + ctr]*(responses[(w_start + ctr) % w_size][0] - mean_func(dp));
 		
-		double kernel_measure = kernel_func(dp, dp) - Math.pow(Math.E, 2*latent_log_hyperparams[0]);
+		double kernel_measure = gaussian_kernel(dp, dp) - Math.pow(Math.E, 2*latent_log_hyperparams[0]);
 		double predictive_variance = kernel_measure - MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(spare_column), k_inv), spare_column)[0][0]; 
 		double predictive_deviance;
 		
-		if(Math.abs(predictive_variance) < 0.0000001) predictive_deviance = 0;
+		if(predictive_variance < 10E-20) predictive_deviance = 0;  // suspicious!
 		else predictive_deviance = Math.sqrt(predictive_variance);
 		
-		if(verbouse) System.out.println(mean_func(dp) + " + " + (y - mean_func(dp)) + ", with predictive variance: " + predictive_variance);
+//		System.out.println(mean_func(dp) + " + " + (y - mean_func(dp)) + ", with predictive variance: " + predictive_variance);
 		
-		return new Prediction(y, predictive_deviance);
+		return new Prediction(target_postscaler(y), target_postscaler(predictive_deviance));
 	}
 	
 	@Override
-	public void update(double[][] dp, double y, Prediction prediction) throws Exception {
+	public void update(double[][] org_dp, double org_y, Prediction prediction) throws Exception {
+		
+		if(update_count > burn_in_count && update_inhibator) return;
+		
+		double[][] dp = scale_input(org_dp);
+		double y = target_prescaler(org_y);
 		
 		int index = getIndexForDp(dp);
 		
 		if(index != -1) {
 			// reject the update
 			// avg the response for the duplicate point
-			
+			double temp = responses[index][0];
 			responses[index][0] = (y + responses[index][0])/2.0;
+			
+			running_window_sum -= temp;
+			running_window_sum += responses[index][0];
+			
 			return;
 		}
 		
@@ -101,13 +107,13 @@ public class GPWindowedOLSMean extends GPWindowedBase {
 		
 		if(slide) {
 			for(int ctr = 1; ctr < w_size; ctr++) {
-				spare_column[ctr-1][0] = kernel_func(dp_window[(w_start + ctr) % w_size], dp);
+				spare_column[ctr-1][0] = gaussian_kernel(dp_window[(w_start + ctr) % w_size], dp);
 			}
 		}
 		else {
 			int ctr = 0;
 			for(; ctr < n; ctr++) {
-				spare_column[w_size - 2 - ctr][0] = kernel_func(dp_window[w_end - 1 - ctr], dp);
+				spare_column[w_size - 2 - ctr][0] = gaussian_kernel(dp_window[w_end - 1 - ctr], dp);
 			}
 			for(; ctr < w_size - 1; ctr++) {
 				spare_column[w_size - 2 - ctr][0] = 0; //kernel_func(null, dp);;
@@ -125,7 +131,7 @@ public class GPWindowedOLSMean extends GPWindowedBase {
 			k[w_size-1][ctr-1] = spare_column[ctr-1][0];
 		}
 		
-		spare_var = kernel_func(dp, dp);
+		spare_var = gaussian_kernel(dp, dp);
 		k[w_size-1][w_size-1] = spare_var;
 		
 		// computing new k_inv
@@ -151,23 +157,26 @@ public class GPWindowedOLSMean extends GPWindowedBase {
 		
 //		k_inv = MatrixOp.fast_invert_psd(k);
 		
-		
 		// sliding the dp_window
 		
 		for(int ctr = 0; ctr < feature_count; ctr++) {
 			dp_window[w_end][ctr][0] = dp[ctr][0];
 		}
 		
+		
+		double temp = responses[w_end][0]; 
 		responses[w_end][0] = y;
-		mean_responses[w_end] = mean_func(dp);
+		//mean_responses[w_end] = mean_func(dp);
 		
 		if(slide) {
+			running_window_sum -= temp;
+			running_window_sum += y; 
 			w_start = (w_start + 1) % w_size;
 			w_end = (w_end + 1) % w_size;
 		}
 		else {
+			running_window_sum += y;
 			w_end = (w_end + 1) % w_size;
-			
 			if(w_start == w_end) slide = true;
 		}
 		
@@ -189,19 +198,28 @@ public class GPWindowedOLSMean extends GPWindowedBase {
 		
 		update_count++;
 		
-		if(is_tuning_time()) {
+		update_running_means(org_dp, org_y);
+		if(slide) update_prediction_errors(org_y, prediction.point_prediction);
+		
+		if(is_tuning_time()) { 
+			
+			revert_windows();
+			revert_mean();
+			
+			update_scaling_factors();
+			
+			scale_windows();
+			scale_mean();
+			
+			recompute_k();
+			recompute_k_inv();
 			
 			double[][] y_u = new double[w_size][1];
 			
 			// creating response-mean vector
 			
 			for(int ctr = 0; ctr < w_size; ctr++)
-				y_u[ctr][0] = responses[(w_start + ctr) % w_size][0];
-			
-			fit_linear_mean_model(y_u);
-			
-			for(int ctr = 0; ctr < w_size; ctr++)
-				y_u[ctr][0] -= mean_func(dp_window[(w_start + ctr) % w_size]);
+				y_u[ctr][0] = responses[(w_start + ctr) % w_size][0] - running_window_sum/n;
 			
 			double marginal_lhood = get_likhood(y_u);
 			
@@ -243,53 +261,36 @@ public class GPWindowedOLSMean extends GPWindowedBase {
 			
 			if(verbouse) System.out.println("Post-Optimization Hyperparameter-Log Gradients :");
 			for(int ctr = 0; verbouse && ctr < latent_log_hyperparams.length; ctr++)
-				System.out.println("gradient " + ctr + " " + gradient[ctr]);
+				if(verbouse) System.out.println("gradient " + ctr + " " + gradient[ctr]);
 		}
 	}
 
-	private void fit_linear_mean_model(double[][] responses_vector) throws Exception {
-		
-		double design_matrix[][] = new double[3*feature_count][w_size];
-		
-		for(int ctr = 0; ctr < n; ctr++) {
-			for(int ctr2 = 0; ctr2 < feature_count; ctr2++) {
-				double entry = dp_window[(w_start + ctr) % w_size][ctr2][0];
-				design_matrix[ctr2*3][(w_start + ctr) % w_size] = Math.sqrt(entry);
-				design_matrix[ctr2*3+1][(w_start + ctr) % w_size] = entry;
-				design_matrix[ctr2*3+2][(w_start + ctr) % w_size] = entry*entry;
-			}
-		}
-		
-		double[][] x_x_t = MatrixOp.mult(design_matrix, MatrixOp.transpose(design_matrix));
-		
-		coeff_u = MatrixOp.mult(MatrixOp.fast_invert_psd(x_x_t), MatrixOp.mult(design_matrix, responses_vector));
-		
-		boolean illegal_coeffs = false;
-		for (int ctr = 0; ctr < coeff_u.length; ctr++) {
-			if(Double.isNaN(coeff_u[ctr][0]) || Double.isInfinite(coeff_u[ctr][0])) {
-				illegal_coeffs = true;
-				break;
-			}
-		}
-		
-		if(illegal_coeffs) {
-			x_x_t = MatrixOp.identitiy_add(x_x_t, 0.1);
-			coeff_u = MatrixOp.mult(MatrixOp.fast_invert_psd(x_x_t), MatrixOp.mult(design_matrix, responses_vector));
-		}
+//	private void fit_linear_mean_model(double[][] responses_vector) throws Exception {
+//		
+//		double design_matrix[][] = new double[feature_count][w_size];
+//		
+//		for(int ctr = 0; ctr < n; ctr++) {
+//			for(int ctr2 = 0; ctr2 < feature_count; ctr2++) {
+//				design_matrix[ctr2][(w_start + ctr) % w_size] = dp_window[(w_start + ctr) % w_size][ctr2][0];
+//			}
+//		}
+//		
+//		coeff_u = MatrixOp.mult(MatrixOp.fast_invert_psd(MatrixOp.mult(design_matrix, MatrixOp.transpose(design_matrix))), MatrixOp.mult(design_matrix, responses_vector));
+//	}
+
+//	private double mean_func(double[][] dp) throws Exception {
+//		return MatrixOp.mult(MatrixOp.transpose(coeff_u), dp)[0][0];
+//	}
+	
+	private void scale_mean() {
+		running_window_sum = target_prescaler(running_window_sum);
 	}
 
-	private double mean_func(double[][] dp) throws Exception {
-		
-		double result = 0;
-		
-		for(int ctr = 0; ctr < feature_count; ctr++) {
-			double entry = dp[ctr][0];
-			result += coeff_u[ctr*3][0]*Math.sqrt(entry);
-			result += coeff_u[ctr*3+1][0]*entry;
-			result += coeff_u[ctr*3+2][0]*entry*entry;
-		}
-		
-		return result;
+	private void revert_mean() {
+		 running_window_sum = target_postscaler(running_window_sum);		
 	}
 
+	private double mean_func(double[][] dp) {
+		return running_window_sum/n;
+	}
 }
