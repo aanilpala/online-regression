@@ -12,9 +12,9 @@ public class KernelRegression extends WindowRegressor {
 	
 	double init_bandwidth = 1;
 	
-	public KernelRegression(int input_width, int window_size, int tuning_mode, boolean update_inhibator) {
+	public KernelRegression(int input_width, int window_size, int tuning_mode) {
 		
-		super(false, input_width, window_size, tuning_mode, update_inhibator);
+		super(false, input_width, window_size, tuning_mode);
 		
 		h = new double[input_width];
 		density_estimates = new double[w_size];
@@ -71,8 +71,6 @@ public class KernelRegression extends WindowRegressor {
 	@Override
 	public void update(double[][] org_dp, double org_y, Prediction prediction) throws Exception {
 		
-		if(update_count > burn_in_count && update_inhibator) return;
-		
 		double[][] dp = scale_input(org_dp);
 		double y = target_prescaler(org_y);
 		
@@ -98,6 +96,8 @@ public class KernelRegression extends WindowRegressor {
 		responses[w_end][0] = y;
 		density_estimates[w_end] = 0;
 		contributions[w_end] = 0;
+		
+		update_running_se(Math.abs(y - prediction.point_prediction));
 		
 		for(int ptr = w_start, ctr = 0; ctr < n-1; ptr = (ptr + 1) % w_size, ctr++) {
 			double kernel_measure = kernel_func(dp_window[ptr], dp, h);
@@ -126,7 +126,7 @@ public class KernelRegression extends WindowRegressor {
 		update_count++;
 		
 		update_running_means(org_dp, org_y);
-		if(slide) update_prediction_errors(org_y, prediction.point_prediction);
+//		if(slide) update_prediction_errors(org_y, prediction.point_prediction);
 		
 		if(is_tuning_time()) {
 			tune_hyper_params();
@@ -259,7 +259,39 @@ public class KernelRegression extends WindowRegressor {
 		return kernel_measure;
 	}
 	
-	
+	@Override
+	public void update_running_se(double residual) {
+		
+		if(tuning_countdown == -1) tuning_countdown = w_size;
+		
+		double old_running_se = running_se;
+		double dropped = 0.0;
+		
+		if(!slide) {
+			residual_window[w_end] = residual;
+			running_se += residual*residual;
+		}
+		else {
+			dropped = residual_window[w_end];
+			residual_window[w_end] = residual;
+			running_se += (residual*residual - dropped*dropped);
+		}
+		
+//		if(update_count > 995 && update_count < 1005) {
+//			System.out.println((n*residual*residual)/old_running_se);
+//		}
+		
+		
+//		double error_increase_ratio = (n*residual*residual)/
+		
+//		System.out.println(old_running_se + "-" + residual*residual + "-" + dropped*dropped);
+		if(running_se < 0) running_se = 0.0;
+		
+		if(slide && n*residual*residual > 1 && 5*old_running_se < n*residual*residual) {
+			high_error_flag = true;
+//			System.out.println(old_running_se + " - " + n*residual*residual);
+		}
+	}
 	
 
 }

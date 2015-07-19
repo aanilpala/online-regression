@@ -1,4 +1,4 @@
-package regression.online.util;
+package regression.util;
 
 import java.io.BufferedWriter;
 import java.io.File;

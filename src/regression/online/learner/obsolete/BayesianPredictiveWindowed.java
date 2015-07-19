@@ -1,22 +1,23 @@
-package regression.online.learner;
+package regression.online.learner.obsolete;
 
+import regression.online.learner.WindowRegressor;
 import regression.online.model.Prediction;
-import regression.online.util.MatrixOp;
-import regression.online.util.MatrixPrinter;
-import regression.online.util.NLInputMapper;
+import regression.util.MatrixOp;
+import regression.util.MatrixPrinter;
+import regression.util.NLInputMapper;
 
-public class BayesianPredictiveWindowedMapped extends WindowRegressor {
+public class BayesianPredictiveWindowed extends WindowRegressor {
 	
 	double[][] mul1;
 	double[][] mul2;   // column matrix
 	
 	double a; //measurement_precision;
 	double b; //weight_precision;
+
 	
-	
-	public BayesianPredictiveWindowedMapped(int input_width, int window_size, double sigma_y, double sigma_w, int tuning_mode, boolean update_inhibator) {
+	public BayesianPredictiveWindowed(int input_width, int window_size, double sigma_y, double sigma_w, int tuning_mode) {
 		
-		super(true, input_width, window_size, tuning_mode, update_inhibator);
+		super(false, input_width, window_size, tuning_mode);
 		
 		a = 1/(sigma_y*sigma_y);
 		b = 1/(sigma_w*sigma_w);
@@ -41,8 +42,6 @@ public class BayesianPredictiveWindowedMapped extends WindowRegressor {
 	
 	public Prediction predict(double[][] dp) throws Exception {
 		
-		dp = nlinmap.map(dp);
-		
 //		System.out.println(update_count);
 //		System.out.println("mul1:");
 //		MatrixPrinter.print_matrix(mul1);
@@ -66,9 +65,7 @@ public class BayesianPredictiveWindowedMapped extends WindowRegressor {
 			responses[index][0] = (y + responses[index][0])/2.0;
 			return;
 		}
-		
-		dp = nlinmap.map(dp);
-				
+						
 		// update v
 		
 		mul2 = MatrixOp.mat_add(mul2, MatrixOp.scalarmult(dp, y));

@@ -15,9 +15,9 @@ public class Prediction {
 	}
 	
 	public Prediction() {
-		this.point_prediction = Double.NaN;
-		this.upper_bound = Double.NaN;
-		this.lower_bound = Double.NaN;
+		this.point_prediction = 0;
+		this.upper_bound = 0;
+		this.lower_bound = 0;
 	}
 
 	public Prediction(double pp, double up, double lo, double opt1, double opt2) {

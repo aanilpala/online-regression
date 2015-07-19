@@ -1,10 +1,11 @@
-package regression.online.learner;
+package regression.online.learner.obsolete;
 
+import regression.online.learner.OnlineRegressor;
 import regression.online.model.Prediction;
-import regression.online.util.MatrixOp;
-import regression.online.util.NLInputMapper;
+import regression.util.MatrixOp;
+import regression.util.NLInputMapper;
 
-public class BayesianPredictive extends Regressor {
+public class BayesianPredictiveMapped extends OnlineRegressor {
 	
 	double[][] mul1;
 	double[][] mul2;   // column matrix
@@ -12,9 +13,9 @@ public class BayesianPredictive extends Regressor {
 	double a; //measurement_precision;
 	double b; //weight_precision;
 	
-	public BayesianPredictive(int input_width, double signal_stddev, double weight_stddev, int explicit_burn_in_count, boolean update_inhibator) {
+	public BayesianPredictiveMapped(int input_width, double signal_stddev, double weight_stddev, int explicit_burn_in_count) {
 		
-		super(false, input_width, update_inhibator);
+		super(true, input_width);
 		
 		burn_in_count = explicit_burn_in_count;
 		
@@ -41,6 +42,8 @@ public class BayesianPredictive extends Regressor {
 	
 	public Prediction predict(double[][] dp) throws Exception {
 		
+		dp = nlinmap.map(dp);
+		
 		double pp = MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(dp), mul1), mul2)[0][0];
 		
 		double pred_variance = MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(dp), MatrixOp.scalarmult(mul1, 1/a)), dp)[0][0]; 
@@ -50,6 +53,8 @@ public class BayesianPredictive extends Regressor {
 	}
 	
 	public void update(double[][] dp, double y, Prediction prediction) throws Exception {
+		
+		dp = nlinmap.map(dp);
 				
 		// update v
 		

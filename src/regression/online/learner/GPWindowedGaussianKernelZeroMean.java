@@ -4,18 +4,21 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Random;
 
+import org.jscience.mathematics.number.Real;
+
 import regression.online.model.Prediction;
-import regression.online.util.CholeskyDecom;
-import regression.online.util.MatrixOp;
-import regression.online.util.MatrixPrinter;
+import regression.util.CholeskyDecom;
+import regression.util.MatrixOp;
+import regression.util.MatrixPrinter;
 
 
 public class GPWindowedGaussianKernelZeroMean extends GPWindowedBase {
 	
 	public GPWindowedGaussianKernelZeroMean(int input_width, int window_size, double sigma_y, double sigma_w, boolean verbouse, int tuning_mode, boolean update_inhibator) {
-		super(false, input_width, window_size, sigma_y, sigma_w, tuning_mode, true, update_inhibator);
+		super(input_width, window_size, sigma_y, sigma_w, tuning_mode, true);
 		
 		this.verbouse = verbouse;
+		
 	}
 	
 	@Override
@@ -33,10 +36,10 @@ public class GPWindowedGaussianKernelZeroMean extends GPWindowedBase {
 		else {
 			int ctr = 0;
 			for(; ctr < n; ctr++) {
-				spare_column[w_size - 1 - ctr][0] = gaussian_kernel(dp_window[w_end - 1 - ctr], dp);
+				spare_column[w_size - 1 - ctr][0] = gaussian_kernel(dp_window[(w_end - 1 - ctr) % w_size], dp);
 			}
 			for(; ctr < w_size - 1; ctr++) {
-				spare_column[w_size - 1 - ctr][0] = 0;
+				spare_column[(w_size - 1 - ctr) % w_size][0] = 0;
 			}
 		}
 		
@@ -62,8 +65,6 @@ public class GPWindowedGaussianKernelZeroMean extends GPWindowedBase {
 	
 	@Override
 	public void update(double[][] org_dp, double org_y, Prediction prediction) throws Exception {
-		
-		if(update_count > burn_in_count && update_inhibator) return;
 		
 		double[][] dp = scale_input(org_dp);
 		double y = target_prescaler(org_y);
@@ -96,7 +97,13 @@ public class GPWindowedGaussianKernelZeroMean extends GPWindowedBase {
 		
 		spare_var = k_inv[0][0];
 		
-		shrunk_inv = MatrixOp.mat_add(shrunk_inv, MatrixOp.scalarmult(MatrixOp.mult(spare_column, MatrixOp.transpose(spare_column)), -1.0/spare_var));
+		shrunk_inv = MatrixOp.mat_add(shrunk_inv, MatrixOp.scalardiv(MatrixOp.mult(spare_column, MatrixOp.transpose(spare_column)), -1*spare_var));
+		
+//		double[][] shrunk_inv_ref = MatrixOp.fast_invert_psd(shrunk);
+//		double first_deviance = MatrixOp.calc_deviance(shrunk_inv_ref, shrunk_inv);
+//		
+//		System.out.print(first_deviance + "-" );
+		
 		
 		if(slide) {
 			for(int ctr = 1; ctr < w_size; ctr++) {
@@ -129,11 +136,13 @@ public class GPWindowedGaussianKernelZeroMean extends GPWindowedBase {
 		
 		// computing new k_inv
 		
-		spare_var = 1.0/(spare_var - MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(spare_column), shrunk_inv), spare_column)[0][0]);
+		double temp = MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(spare_column), shrunk_inv), spare_column)[0][0];
+		double spare_var_inv = (spare_var - temp);
+		spare_var = 1/spare_var_inv;
 				
-		double[][] temp_upper_left = MatrixOp.mult(shrunk_inv, MatrixOp.identitiy_add(MatrixOp.scalarmult(MatrixOp.mult(MatrixOp.mult(spare_column, MatrixOp.transpose(spare_column)), MatrixOp.transpose(shrunk_inv)), spare_var), 1));
+		double[][] temp_upper_left = MatrixOp.mult(shrunk_inv, MatrixOp.identitiy_add(MatrixOp.scalardiv(MatrixOp.mult(MatrixOp.mult(spare_column, MatrixOp.transpose(spare_column)), MatrixOp.transpose(shrunk_inv)), spare_var_inv), 1));
 				
-		spare_column = MatrixOp.scalarmult(MatrixOp.mult(shrunk_inv, spare_column), -1*spare_var);		
+		spare_column = MatrixOp.scalardiv(MatrixOp.mult(shrunk_inv, spare_column), -1*spare_var_inv);		
 		
 		for(int ctr = 1; ctr < w_size; ctr++) {
 			for(int ctr2 = 1; ctr2 < w_size; ctr2++) {
@@ -148,12 +157,19 @@ public class GPWindowedGaussianKernelZeroMean extends GPWindowedBase {
 		
 		k_inv[w_size-1][w_size-1] = spare_var;
 		
+		
+//		double[][] k_inv_ref = null;
+//		
 //		try {
-//			k_inv = MatrixOp.fast_invert_psd(k);	
+//			k_inv_ref = MatrixOp.fast_invert_psd(k);
 //		}
 //		catch (Exception e) {
 //			System.out.println("SHIT");
 //		}
+//		
+//		double deviance = MatrixOp.calc_deviance(k_inv_ref, k_inv);
+//		System.out.println(deviance);
+		
 		
 		// sliding the dp_window
 		
@@ -162,7 +178,9 @@ public class GPWindowedGaussianKernelZeroMean extends GPWindowedBase {
 		}
 		
 		responses[w_end][0] = y;
-		//mean_responses[w_end] = mean_func(dp);
+		
+		update_running_se(Math.abs(org_y - prediction.point_prediction));
+		
 		
 		if(slide) {
 			w_start = (w_start + 1) % w_size;
@@ -175,11 +193,7 @@ public class GPWindowedGaussianKernelZeroMean extends GPWindowedBase {
 		}
 		
 		count_dps_in_window();
-		
-//		System.out.println("post-update");
-//		MatrixPrinter.print_matrix(k);
-//		System.out.println("post-update_inv");
-//		MatrixPrinter.print_matrix(k_inv);		
+
 //		
 //		System.out.println("--------------------------------");
 		
@@ -193,7 +207,8 @@ public class GPWindowedGaussianKernelZeroMean extends GPWindowedBase {
 		update_count++;
 		
 		update_running_means(org_dp, org_y);
-		if(slide) update_prediction_errors(org_y, prediction.point_prediction);
+//		if(slide) update_prediction_errors(org_y, prediction.point_prediction);
+		
 		
 		if(is_tuning_time()) { 
 			
@@ -231,12 +246,8 @@ public class GPWindowedGaussianKernelZeroMean extends GPWindowedBase {
 				System.out.println("gradient " + ctr + " " + gradient[ctr]);
 			
 			if(verbouse) System.out.println("--------------------------");
-			
-			//if(true) return;
-			
+						
 			optimize_hyperparams(y_u, marginal_lhood);
-			//update_hyperparams_steepestasc(responses_minus_mean_vector, marginal_lhood);
-			//update_hyperparams_rprop(responses_minus_mean_vector, marginal_lhood);
 			
 			if(verbouse) System.out.println("--------------------------");
 			
@@ -254,6 +265,23 @@ public class GPWindowedGaussianKernelZeroMean extends GPWindowedBase {
 			if(verbouse) System.out.println("Post-Optimization Hyperparameter-Log Gradients :");
 			for(int ctr = 0; verbouse && ctr < latent_log_hyperparams.length; ctr++)
 				System.out.println("gradient " + ctr + " " + gradient[ctr]);
+			
 		}
+		else if(slide && update_count % 25 == 0) {
+			recompute_k_inv();
+		}
+	}
+	
+	@Override
+	public void update_scaling_factors() {
+		
+		if(target_mean != 0)
+			target_scaler = 1/(target_mean);
+		
+		for (int ctr = 0; ctr < input_means.length; ctr++) {
+			if(input_means[ctr] == 0) continue;
+			input_scaler[ctr] = 1/(input_means[ctr]);
+		}
+		
 	}
 }

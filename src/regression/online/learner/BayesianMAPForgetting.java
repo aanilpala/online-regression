@@ -3,10 +3,10 @@ package regression.online.learner;
 import java.io.IOException;
 
 import regression.online.model.Prediction;
-import regression.online.util.MatrixOp;
-import regression.online.util.MatrixPrinter;
+import regression.util.MatrixOp;
+import regression.util.MatrixPrinter;
 
-public class BayesianMAPForgetting extends Regressor {
+public class BayesianMAPForgetting extends OnlineRegressor {
 	
 	double[][][] v;
 	double[][][] params; // column matrices
@@ -14,11 +14,14 @@ public class BayesianMAPForgetting extends Regressor {
 	double a; //measurement_precision;
 	double b; //weight_precision;
 	
-	double forgetting_factor = 0.9; // smaller the forgetting factor, higher the forgetting is. So, when forgetting_factor is set to 1.0, there is no forgetting.
+	double forgetting_factor;
 	
-	public BayesianMAPForgetting(int input_width, double signal_stddev, double weight_stddev, boolean update_inhibator) {
+	public BayesianMAPForgetting(int input_width, double forgetting_factor, boolean map2fs, double signal_stddev, double weight_stddev) {
 		
-		super(false, input_width, update_inhibator);
+		super(map2fs, input_width);
+		
+		this.forgetting_factor = forgetting_factor;
+		this.name += "FR" + forgetting_factor*100; 
 		
 		a = 1/(signal_stddev*signal_stddev);
 		b = 1/(weight_stddev*weight_stddev);
@@ -41,11 +44,11 @@ public class BayesianMAPForgetting extends Regressor {
 			}
 		}
 		
-		burn_in_count = 5;
-		
 	}
 	
 	public Prediction predict(double[][] dp) throws Exception {
+		
+		if(map2fs) dp = nlinmap.map(dp);
 		
 		double pp = MatrixOp.mult(MatrixOp.transpose(dp), params[0])[0][0];
 		double lp = MatrixOp.mult(MatrixOp.transpose(dp), params[1])[0][0];
@@ -71,6 +74,8 @@ public class BayesianMAPForgetting extends Regressor {
 	}
 	
 	public void update(double[][] dp, double y, Prediction prediction) throws Exception {
+		
+		if(map2fs) dp = nlinmap.map(dp);
 		
 		int region;
 		
@@ -105,7 +110,7 @@ public class BayesianMAPForgetting extends Regressor {
 		
 		// compute b
 		
-		v[0] = MatrixOp.scalarmult(MatrixOp.mat_add(v[0], MatrixOp.scalarmult(nom1, -1/denom)), 1/forgetting_factor);
+		v[0] = MatrixOp.scalarmult(MatrixOp.mat_add(v[0], MatrixOp.scalarmult(nom1, -1/denom)), 1/(1-forgetting_factor));
 				
 		params[0] = MatrixOp.mat_add(params[0], MatrixOp.scalarmult(MatrixOp.mult(v[0], dp), y - prediction.point_prediction)) ;
 		
@@ -119,7 +124,7 @@ public class BayesianMAPForgetting extends Regressor {
 			
 			// compute b
 			
-			v[1] = MatrixOp.scalarmult(MatrixOp.mat_add(v[1], MatrixOp.scalarmult(nom1_1, -1/denom_1)), 1/forgetting_factor);
+			v[1] = MatrixOp.scalarmult(MatrixOp.mat_add(v[1], MatrixOp.scalarmult(nom1_1, -1/denom_1)), 1/(1-forgetting_factor));
 					
 			params[1] = MatrixOp.mat_add(params[1], MatrixOp.scalarmult(MatrixOp.mult(v[1], dp), y - MatrixOp.mult(MatrixOp.transpose(dp), params[1])[0][0])) ;
 		}
@@ -133,7 +138,7 @@ public class BayesianMAPForgetting extends Regressor {
 						
 			// compute b
 						
-			v[2] = MatrixOp.scalarmult(MatrixOp.mat_add(v[2], MatrixOp.scalarmult(nom1_1, -1/denom_1)), 1/forgetting_factor);
+			v[2] = MatrixOp.scalarmult(MatrixOp.mat_add(v[2], MatrixOp.scalarmult(nom1_1, -1/denom_1)), 1/(1-forgetting_factor));
 								
 			params[2] = MatrixOp.mat_add(params[2], MatrixOp.scalarmult(MatrixOp.mult(v[2], dp), y - MatrixOp.mult(MatrixOp.transpose(dp), params[2])[0][0])) ;
 		}

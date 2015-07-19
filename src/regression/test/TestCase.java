@@ -1,4 +1,4 @@
-package regression.online.test;
+package regression.test;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -14,13 +14,16 @@ public class TestCase {
 	List<Double> responses;
 	int input_width;
 	String data_set_name;
+	boolean st;
 	
 //	double input_scaler = 0.001;
 //	double output_scaler = 0.001;
 	
-	public TestCase(File file) throws Exception {
+	public TestCase(File file, boolean is_st) throws Exception {
 		data_points = new ArrayList<double[][]>();
 		responses = new ArrayList<Double>();
+		
+		this.st = is_st;
 		
 		BufferedReader br = new BufferedReader(new FileReader(file));
 		for(String line; (line = br.readLine()) != null; ) {
@@ -42,5 +45,9 @@ public class TestCase {
 		
 		data_set_name = file.getName().split("\\.")[0];
 		input_width = data_points.get(0).length;
+	}
+	
+	public int get_input_width() {
+		return input_width;
 	}
 }

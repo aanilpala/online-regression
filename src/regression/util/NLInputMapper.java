@@ -1,4 +1,4 @@
-package regression.online.util;
+package regression.util;
 
 public class NLInputMapper {
 

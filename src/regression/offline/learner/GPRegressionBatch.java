@@ -1,17 +1,17 @@
-package regression.online.learner;
+package regression.offline.learner;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Random;
 
-import org.jscience.mathematics.number.Real;
-
 import regression.util.MatrixOp;
 
-public abstract class GPWindowedBase extends WindowRegressor{
-	
+public class GPRegressionBatch extends BatchRegressor {
+
 	double[][] k; // gram matrix
-	double[][] k_inv; // inverse gram matrix	
+	double[][] k_inv; // inverse gram matrix
+	
+	double[][][] training_set;
+	double[][] responses;
 	
 	// hyperparams
 	double[] latent_log_hyperparams; // length-scale array;
@@ -22,19 +22,22 @@ public abstract class GPWindowedBase extends WindowRegressor{
 	Random rand = new Random();
 	boolean sigma_y_is_inhibated;
 	
-	public GPWindowedBase(int input_width, int window_size, double sigma_y, double sigma_w, int tuning_mode, boolean sigma_y_is_inhibited) {
-		super(false, input_width, window_size, tuning_mode);
+	public GPRegressionBatch(int input_width, int training_set_size, boolean sigma_y_is_inhibited) {
+		super(input_width, training_set_size, sigma_y_is_inhibited);
 		
 		this.sigma_y_is_inhibated = sigma_y_is_inhibited;
 		
-		k = new double[w_size][w_size]; 
-		k_inv = new double[w_size][w_size];
+		training_set = new double[training_set_size][input_width][1];
+		responses = new double[training_set_size][1];
+		
+		k = new double[training_set_size][training_set_size]; 
+		k_inv = new double[training_set_size][training_set_size];
 		
 		hyperparams_count = feature_count + 2;
 		latent_log_hyperparams = new double[hyperparams_count];
 		
-		latent_log_hyperparams[0] = Math.log(sigma_y);
-		latent_log_hyperparams[1] = Math.log(sigma_w);
+		latent_log_hyperparams[0] = Math.log(0.1);
+		latent_log_hyperparams[1] = Math.log(2);
 		
 		for(int ctr = 2; ctr < hyperparams_count; ctr++) {
 			latent_log_hyperparams[ctr] = Math.log(init_lengthscale);
@@ -42,8 +45,8 @@ public abstract class GPWindowedBase extends WindowRegressor{
 		
 		double val = Math.pow(Math.E, 2*latent_log_hyperparams[0]) + Math.pow(Math.E, 2*latent_log_hyperparams[1]);
 		
-		for(int ctr = 0; ctr < w_size; ctr++) {
-			for(int ctr2 = 0; ctr2 < w_size; ctr2++) {
+		for(int ctr = 0; ctr < training_set_size; ctr++) {
+			for(int ctr2 = 0; ctr2 < training_set_size; ctr2++) {
 				if(ctr == ctr2) {
 					k[ctr][ctr2] = val;
 					k_inv[ctr][ctr2] = 1/val;
@@ -57,14 +60,65 @@ public abstract class GPWindowedBase extends WindowRegressor{
 		}
 	}
 	
+	@Override
+	public void train(double[][][] dps, double[][] targets) throws Exception {
+		
+		compute_means(dps, targets);
+		determine_scaling_factors();
+		scale_training_data(dps, targets);
+		
+		for(int ctr = 0; ctr < training_set_size; ctr++) {
+			for(int ctr2 = 0; ctr2 < feature_count; ctr2++) {
+				training_set[ctr][ctr2][0] = dps[ctr][ctr2][0];
+			}
+		}
+		
+		for(int ctr = 0; ctr < training_set_size; ctr++) {
+			responses[ctr][0] = targets[ctr][0];
+		}
+		
+		recompute_k();
+		recompute_k_inv();
+		
+		double marginal_lhood = get_likhood(responses);
+		
+		double[] gradient = new double[latent_log_hyperparams.length];
+		
+		set_gradients(gradient, responses);
+		
+		optimize_hyperparams(responses, marginal_lhood);
+		
+	}
+	
+	@Override
+	public double predict(double[][] dp) throws Exception {
+		
+		dp = scale_input(dp);
+		
+		double[][] spare_column = new double[training_set_size][1];
+		
+		for(int ctr = 0; ctr < training_set_size; ctr++)
+			spare_column[ctr][0] = gaussian_kernel(training_set[ctr], dp);
+		
+		double[][] temp_column = MatrixOp.mult(MatrixOp.transpose(spare_column), k_inv);
+		
+		double y = 0;
+		
+		for(int ctr = 0; ctr < training_set_size; ctr++)
+			y += temp_column[0][ctr]*(responses[ctr][0]); 
+		
+		return target_postscaler(y);
+	}
+	
+	
 	protected void set_gradients(double[] gradient, double[][] y) throws Exception {
 		
-		double[][] derivative_cov_matrix = new double[w_size][w_size];
+		double[][] derivative_cov_matrix = new double[training_set_size][training_set_size];
 		
 		if(!sigma_y_is_inhibated ) {
 			// gradient log sigma_y
-				for(int ctr = 0; ctr < w_size; ctr++) {
-					for(int ctr2 = 0; ctr2 < w_size; ctr2++) {
+				for(int ctr = 0; ctr < training_set_size; ctr++) {
+					for(int ctr2 = 0; ctr2 < training_set_size; ctr2++) {
 						if(ctr == ctr2) derivative_cov_matrix[ctr][ctr2] = 2.0*Math.pow(Math.E, 2*latent_log_hyperparams[0]); 
 						else derivative_cov_matrix[ctr][ctr2] = 0;
 					}
@@ -74,8 +128,8 @@ public abstract class GPWindowedBase extends WindowRegressor{
 		else gradient[0] = 0;
 				
 		// gradient log sigma_w
-		for(int ctr = 0; ctr < w_size; ctr++) {
-			for(int ctr2 = 0; ctr2 < w_size; ctr2++) {
+		for(int ctr = 0; ctr < training_set_size; ctr++) {
+			for(int ctr2 = 0; ctr2 < training_set_size; ctr2++) {
 				if(ctr == ctr2) derivative_cov_matrix[ctr][ctr2] = 2.0*Math.pow(Math.E, 2*latent_log_hyperparams[1]); //2.0*hyperparams[1]; 
 				else derivative_cov_matrix[ctr][ctr2] = (2.0)*k[ctr][ctr2]; // (2.0/hyperparams[1])*k[ctr][ctr2];
 			}
@@ -85,11 +139,11 @@ public abstract class GPWindowedBase extends WindowRegressor{
 					
 		// lengthscale gradients
 		for(int ctr3 = 2; ctr3 < hyperparams_count; ctr3++) {
-			for(int ctr = 0; ctr < w_size; ctr++) {
-				for(int ctr2 = 0; ctr2 < w_size; ctr2++) {
+			for(int ctr = 0; ctr < training_set_size; ctr++) {
+				for(int ctr2 = 0; ctr2 < training_set_size; ctr2++) {
 					if(ctr == ctr2) derivative_cov_matrix[ctr][ctr2] = 0;
 					else {
-						double dif = dp_window[(w_start + ctr) % w_size][ctr3-2][0] - dp_window[(w_start + ctr2) % w_size][ctr3-2][0];
+						double dif = training_set[ctr][ctr3-2][0] - training_set[ctr2][ctr3-2][0];
 						derivative_cov_matrix[ctr][ctr2] = dif*dif*Math.pow(Math.E, -2*latent_log_hyperparams[ctr3])*k[ctr][ctr2]; //(((dif*dif))/(Math.pow(hyperparams[ctr3], 3)))*k[ctr][ctr2];
 					}
 				}
@@ -283,7 +337,7 @@ public abstract class GPWindowedBase extends WindowRegressor{
 		
 		double complexity_penalty = -0.5*Math.log(MatrixOp.get_det_of_psd_matrix(k));
 		double data_fit = -0.5*MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(y_u), k_inv), y_u)[0][0];
-		double constant = -(n/2.0)*Math.log(Math.PI*2);
+		double constant = -(training_set_size/2.0)*Math.log(Math.PI*2);
 		
 		return complexity_penalty + data_fit + constant;
 //		return data_fit;
@@ -291,9 +345,9 @@ public abstract class GPWindowedBase extends WindowRegressor{
 	
 	protected void recompute_k() throws Exception {
 		
-		for(int ctr = 0; slide && ctr < w_size; ctr++) {
-			for(int ctr2 = 0; ctr2 < w_size; ctr2++) {
-				k[ctr][ctr2] = gaussian_kernel(dp_window[(w_start+ctr) % w_size], dp_window[(w_start+ctr2) % w_size]);
+		for(int ctr = 0; ctr < training_set_size; ctr++) {
+			for(int ctr2 = 0; ctr2 < training_set_size; ctr2++) {
+				k[ctr][ctr2] = gaussian_kernel(training_set[ctr], training_set[ctr2]);
 			}
 		}
 	}
@@ -323,88 +377,4 @@ public abstract class GPWindowedBase extends WindowRegressor{
 	}
 	
 	
-//	private void print_marginal_likelihood_vals(double[][] responses_matrix, double current_mlik) throws Exception {
-//		
-//		double min_sigma_y = 0.1;
-//		double max_sigma_y = 2.0;
-//		double step_sigma_y = 0.2;
-//		
-//		double min_sigma_w = 0.5;
-//		double max_sigma_w = 5;
-//		double step_sigma_w = 0.25;
-//				
-//		double min_lengthscale = 45;
-//		double max_lengthscale = 50;
-//		double length_scale_step = 0.5;
-//		
-//		double step_number = (max_lengthscale - min_lengthscale) / length_scale_step;
-//		double total_steps = (int) Math.pow(step_number, feature_count);
-//		
-//		double[] optimum_hyperparams = new double[feature_count+2];
-//		
-//		for(int ctr = 0; ctr < feature_count+2; ctr++)
-//			optimum_hyperparams[ctr] = hyperparams[ctr];
-//		
-//		for(int cur_step = 0 ; cur_step < total_steps; cur_step++) {
-//			for (double cur_sigma_y = min_sigma_y; cur_sigma_y <= max_sigma_y; cur_sigma_y += step_sigma_y) {
-//				for (double cur_sigma_w = min_sigma_w; cur_sigma_w <= max_sigma_w; cur_sigma_w += step_sigma_w) {
-//					
-//					double temp = cur_step;
-//					
-//					for(int ctr = feature_count-1; ctr >= 0; ctr--) {
-//						double cur_level = Math.pow(step_number, ctr);
-//						double cur_number = Math.floor(temp/cur_level); 
-//						hyperparams[ctr+2] = cur_number*length_scale_step + min_lengthscale;
-//						temp -= cur_number*cur_level;
-//					}
-//					
-//					hyperparams[0] = cur_sigma_y;
-//					hyperparams[1] = cur_sigma_w;
-//					
-//					a = 1/(hyperparams[0]*hyperparams[0]);
-//					b = 1/(hyperparams[1]*hyperparams[1]);
-//					
-//					recompute_k();
-//					
-//					try {
-//						recompute_k_inv();
-//					}
-//					catch (Exception e) {
-//						//e.printStackTrace();
-//						continue;
-//					}
-//					
-//					double complexity_penalty = -0.5*Math.log(MatrixOp.get_det_of_psd_matrix(k));
-//					double data_fit = -0.5*MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(responses_matrix), k_inv), responses_matrix)[0][0];
-//					double constant = -(n/2.0)*Math.log(Math.PI*2);
-//					
-//					double marginal_lhood = complexity_penalty + data_fit + constant;   
-//					
-//					if(current_mlik < marginal_lhood) {
-//						current_mlik = marginal_lhood;
-//						
-//						System.out.print(hyperparams[0] + ", " + hyperparams[1]);
-//						
-//						for(int ctr = 0; ctr < feature_count; ctr++)
-//								System.out.print(", " + hyperparams[ctr+2]);
-//						
-//						System.out.println(" -> " + marginal_lhood + " = " + complexity_penalty + " + " + data_fit + " + " + constant);
-//						
-//						for(int ctr = 0; ctr < feature_count+2; ctr++)
-//							optimum_hyperparams[ctr] = hyperparams[ctr];
-//						
-//					}
-//				}
-//			}
-//		}
-//		
-//		for(int ctr = 0; ctr < feature_count+2; ctr++)
-//			hyperparams[ctr] = optimum_hyperparams[ctr];
-//		
-//		a = 1/(optimum_hyperparams[0]*optimum_hyperparams[0]);
-//		b = 1/(optimum_hyperparams[1]*optimum_hyperparams[1]);
-//		
-//		recompute_k();
-//		recompute_k_inv();
-//	}
 }

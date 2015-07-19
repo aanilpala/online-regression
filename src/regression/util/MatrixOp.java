@@ -1,9 +1,109 @@
-package regression.online.util;
+package regression.util;
 
 import aima.core.util.math.*;
 
-public class MatrixOp {
+import org.jscience.mathematics.number.Real;
 
+import com.sun.accessibility.internal.resources.accessibility;
+
+import sun.security.krb5.Realm;
+
+
+public class MatrixOp {
+	
+	public static Real[][] double2real(double[][] m) {
+		
+		int num_col = m[0].length;
+		int num_row = m.length;
+		
+		Real[][] r_m = new Real[num_row][num_col];
+		
+		for(int ctr = 0; ctr < num_row; ctr++) {
+			for(int ctr2 = 0; ctr2 < num_col; ctr2++) {
+				r_m[ctr][ctr] = Real.valueOf(m[ctr][ctr2]);
+			}
+		}
+		
+		return r_m;
+		
+	}
+	
+	public static double[][] real2double(Real[][] m) {
+		
+		int num_col = m[0].length;
+		int num_row = m.length;
+		
+		double[][] d_m = new double[num_row][num_col];
+		
+		for(int ctr = 0; ctr < num_row; ctr++) {
+			for(int ctr2 = 0; ctr2 < num_col; ctr2++) {
+				d_m[ctr][ctr] = m[ctr][ctr2].doubleValue();
+			}
+		}
+		
+		return d_m;
+	}
+	
+	public static double[][] mult_precision(double m1[][], double m2[][]) throws Exception{
+		
+		if(m1.length == 0) return new double[0][0];
+		if(m1[0].length != m2.length) throw new Exception("Incompatible sized matrices for multiplication");
+		 
+		int n = m1[0].length;
+		int m = m1.length;
+		int p = m2[0].length;
+		 
+		Real r_ans[][] = new Real[m][p];
+		
+		for(int i = 0;i < m;i++){
+			for(int j = 0;j < p;j++) {
+				for(int k = 0;k < n;k++){
+					if(r_ans[i][j] != null)
+						r_ans[i][j] = r_ans[i][j].plus(Real.valueOf(m1[i][k]).times(Real.valueOf(m2[k][j])));
+					else
+						r_ans[i][j] = Real.valueOf(m1[i][k]).times(Real.valueOf(m2[k][j]));
+				}
+			}
+		}
+		
+		return real2double(r_ans);
+	}
+	
+	public static double[][] scalarmult_precision(double[][] m, Real coeff) {
+		
+		int num_col = m[0].length;
+		int num_row = m.length;
+		
+		Real r_ans[][] = new Real[num_row][num_col]; 
+		
+		for(int ctr = 0; ctr < num_row; ctr++) {
+			for(int ctr2 = 0; ctr2 < num_col; ctr2++) {
+				r_ans[ctr][ctr2] = coeff.times(Real.valueOf(m[ctr][ctr2]));
+			}
+		}
+		
+		return real2double(r_ans);
+	}
+	
+	
+	public static double[][] scalardiv(double[][] m, Real d) {
+		
+		int num_col = m[0].length;
+		int num_row = m.length;
+		
+		Real r_ans[][] = new Real[num_row][num_col]; 
+		
+		for(int ctr = 0; ctr < num_row; ctr++) {
+			for(int ctr2 = 0; ctr2 < num_col; ctr2++) {
+				r_ans[ctr][ctr2] = (Real.valueOf(m[ctr][ctr2])).divide(d);
+			}
+		}
+		
+		return real2double(r_ans);
+	}
+	
+	
+	
 	public static double[][] mat_add(double m1[][], double m2[][]) throws Exception{
 		
 		if(m1[0].length != m2[0].length || m1[0].length != m2[0].length) throw new Exception("Not equal sized matrices");
@@ -60,6 +160,44 @@ public class MatrixOp {
 		return ans;
 	}
 	
+	public static double[][] identitiy_add_test(double m1[][], double coeff) throws Exception{
+		
+		if(m1[0].length != m1.length) throw new Exception("Not a square matrix");
+		
+		int num_col = m1[0].length;
+		int num_row = m1.length;
+		
+		double[][] ans = new double[num_row][num_col]; 
+		
+		for(int ctr = 0; ctr < num_row; ctr++) {
+			for(int ctr2 = 0; ctr2 < num_col; ctr2++) {
+				if(ctr == ctr2) {
+					ans[ctr][ctr2] = m1[ctr][ctr2] + coeff;
+					System.out.println(ans[ctr][ctr2] + " - " + m1[ctr][ctr2] + " - " + coeff);
+				}
+				else ans[ctr][ctr2] = m1[ctr][ctr2];
+			} 
+		}
+		
+		return ans;
+	}
+	
+	public static double[][] scalardiv(double[][] m, double d) {
+		
+		int num_col = m[0].length;
+		int num_row = m.length;
+		
+		double[][] ans = new double[num_row][num_col]; 
+		
+		for(int ctr = 0; ctr < num_row; ctr++) {
+			for(int ctr2 = 0; ctr2 < num_col; ctr2++) {
+				ans[ctr][ctr2] = m[ctr][ctr2]/d;
+			}
+		}
+		
+		return ans;
+	}
+	
 	public static double[][] scalarmult(double[][] m, double coeff) {
 		
 		int num_col = m[0].length;
@@ -92,40 +230,6 @@ public class MatrixOp {
 		return ans;
 	}
 	
-	public static double[][] mult_precision(double m1[][], double m2[][]) throws Exception{
-		
-		if(m1.length == 0) return new double[0][0];
-		if(m1[0].length != m2.length) throw new Exception("Incompatible sized matrices for multiplication");
-		 
-		int n = m1[0].length;
-		int m = m1.length;
-		int p = m2[0].length;
-		 
-		double ans[][] = new double[m][p];
-		long scaled_ans[][] = new long[m][p];
-//		int target_precision = 5;
-//		double scaler = Math.pow(10.0, target_precision);
-		
-		long scaler = 1000000000L;
-		
-		for(int i = 0;i < m;i++){
-			for(int j = 0;j < p;j++){
-				for(int k = 0;k < n;k++){
-					scaled_ans[i][j] += ((long) m1[i][k]*scaler)*((long) m2[k][j]*scaler);
-				}
-			}
-		}
-		
-		for(int i = 0; i < m; i++){
-			for(int j = 0; j < p; j++){
-				ans[i][j] = (1.0/(scaler*scaler))*scaled_ans[i][j];
-			}
-		}
-		
-		return ans;
-		
-	}
-	
 	public static double[][] mult(double m1[][], double m2[][]) throws Exception{
 		
 		if(m1.length == 0) return new double[0][0];
@@ -147,7 +251,8 @@ public class MatrixOp {
 		
 		return ans;
 	}
-
+	
+	
 	public static boolean isEqual(double[][] m1, double[][] m2) {
 		
 		if(m1.length != m2.length) return false;
@@ -265,10 +370,6 @@ public class MatrixOp {
 		
 		return result;
 	}
-	
-	public static void main(String[] args) {
-		
-	}
 
 	public static boolean isProportional(double[][] vec1, double[][] vec2) throws Exception {
 		
@@ -285,4 +386,22 @@ public class MatrixOp {
 		
 		return true;
 	}
+
+	public static double calc_deviance(double[][] ref, double[][] m) throws Exception {
+		
+		if(m.length != m[0].length) throw new Exception("Matrix is not square");
+		int size = m.length;
+		double deviance = 0.0;
+		
+		for(int ctr = 0; ctr < size; ctr++) {
+			for(int ctr2 = 0; ctr2 < size; ctr2++) {
+				deviance += Math.abs(ref[ctr][ctr2] - m[ctr][ctr2]); 
+			}
+		}
+		
+		return deviance;
+		
+	}
+
+	
 }

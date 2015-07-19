@@ -5,9 +5,9 @@ import java.util.Arrays;
 import java.util.Random;
 
 import regression.online.model.Prediction;
-import regression.online.util.CholeskyDecom;
-import regression.online.util.MatrixOp;
-import regression.online.util.MatrixPrinter;
+import regression.util.CholeskyDecom;
+import regression.util.MatrixOp;
+import regression.util.MatrixPrinter;
 
 
 public class GPWindowedGaussianKernelAvgMean extends GPWindowedBase {
@@ -15,7 +15,7 @@ public class GPWindowedGaussianKernelAvgMean extends GPWindowedBase {
 	double running_window_sum;
 	
 	public GPWindowedGaussianKernelAvgMean(int input_width, int window_size, double sigma_y, double sigma_w, boolean verbouse, int tuning_mode, boolean update_inhibator) {
-		super(false, input_width, window_size, sigma_y, sigma_w, tuning_mode, true, update_inhibator);
+		super(input_width, window_size, sigma_y, sigma_w, tuning_mode, true);
 		
 		this.verbouse = verbouse;
 		
@@ -66,8 +66,6 @@ public class GPWindowedGaussianKernelAvgMean extends GPWindowedBase {
 	@Override
 	public void update(double[][] org_dp, double org_y, Prediction prediction) throws Exception {
 		
-		if(update_count > burn_in_count && update_inhibator) return;
-		
 		double[][] dp = scale_input(org_dp);
 		double y = target_prescaler(org_y);
 		
@@ -103,7 +101,8 @@ public class GPWindowedGaussianKernelAvgMean extends GPWindowedBase {
 		
 		spare_var = k_inv[0][0];
 		
-		shrunk_inv = MatrixOp.mat_add(shrunk_inv, MatrixOp.scalarmult(MatrixOp.mult(spare_column, MatrixOp.transpose(spare_column)), -1.0/spare_var));
+//		shrunk_inv = MatrixOp.mat_add(shrunk_inv, MatrixOp.scalarmult(MatrixOp.mult(spare_column, MatrixOp.transpose(spare_column)), -1.0/spare_var));
+		shrunk_inv = MatrixOp.mat_add(shrunk_inv, MatrixOp.scalardiv(MatrixOp.mult(spare_column, MatrixOp.transpose(spare_column)), -1*spare_var));
 		
 		if(slide) {
 			for(int ctr = 1; ctr < w_size; ctr++) {
@@ -136,11 +135,13 @@ public class GPWindowedGaussianKernelAvgMean extends GPWindowedBase {
 		
 		// computing new k_inv
 		
-		spare_var = 1.0/(spare_var - MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(spare_column), shrunk_inv), spare_column)[0][0]);
+		double temp2 = MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(spare_column), shrunk_inv), spare_column)[0][0];
+		double spare_var_inv = (spare_var - temp2);
+		spare_var = 1/spare_var_inv;
 				
-		double[][] temp_upper_left = MatrixOp.mult(shrunk_inv, MatrixOp.identitiy_add(MatrixOp.scalarmult(MatrixOp.mult(MatrixOp.mult(spare_column, MatrixOp.transpose(spare_column)), MatrixOp.transpose(shrunk_inv)), spare_var), 1));
+		double[][] temp_upper_left = MatrixOp.mult(shrunk_inv, MatrixOp.identitiy_add(MatrixOp.scalardiv(MatrixOp.mult(MatrixOp.mult(spare_column, MatrixOp.transpose(spare_column)), MatrixOp.transpose(shrunk_inv)), spare_var_inv), 1));
 				
-		spare_column = MatrixOp.scalarmult(MatrixOp.mult(shrunk_inv, spare_column), -1*spare_var);		
+		spare_column = MatrixOp.scalardiv(MatrixOp.mult(shrunk_inv, spare_column), -1*spare_var_inv);		
 		
 		for(int ctr = 1; ctr < w_size; ctr++) {
 			for(int ctr2 = 1; ctr2 < w_size; ctr2++) {
@@ -155,7 +156,17 @@ public class GPWindowedGaussianKernelAvgMean extends GPWindowedBase {
 		
 		k_inv[w_size-1][w_size-1] = spare_var;
 		
-//		k_inv = MatrixOp.fast_invert_psd(k);
+//		double[][] k_inv_ref = null;
+//		
+//		try {
+//			k_inv_ref = MatrixOp.fast_invert_psd(k);
+//		}
+//		catch (Exception e) {
+//			System.out.println("SHIT");
+//		}
+//		
+//		double deviance = MatrixOp.calc_deviance(k_inv_ref, k_inv);
+//		System.out.println(deviance);
 		
 		// sliding the dp_window
 		
@@ -167,6 +178,8 @@ public class GPWindowedGaussianKernelAvgMean extends GPWindowedBase {
 		double temp = responses[w_end][0]; 
 		responses[w_end][0] = y;
 		//mean_responses[w_end] = mean_func(dp);
+		
+		update_running_se(Math.abs(org_y - prediction.point_prediction));
 		
 		if(slide) {
 			running_window_sum -= temp;
@@ -199,7 +212,7 @@ public class GPWindowedGaussianKernelAvgMean extends GPWindowedBase {
 		update_count++;
 		
 		update_running_means(org_dp, org_y);
-		if(slide) update_prediction_errors(org_y, prediction.point_prediction);
+//		if(slide) update_prediction_errors(org_y, prediction.point_prediction);
 		
 		if(is_tuning_time()) { 
 			
@@ -263,6 +276,7 @@ public class GPWindowedGaussianKernelAvgMean extends GPWindowedBase {
 			for(int ctr = 0; verbouse && ctr < latent_log_hyperparams.length; ctr++)
 				if(verbouse) System.out.println("gradient " + ctr + " " + gradient[ctr]);
 		}
+		
 	}
 
 //	private void fit_linear_mean_model(double[][] responses_vector) throws Exception {
@@ -291,6 +305,20 @@ public class GPWindowedGaussianKernelAvgMean extends GPWindowedBase {
 	}
 
 	private double mean_func(double[][] dp) {
-		return running_window_sum/n;
+		return (n == 0) ? 0 : running_window_sum/n;
 	}
+	
+	@Override
+	public void update_scaling_factors() {
+		
+		if(target_mean != 0)
+			target_scaler = 1/(target_mean);
+		
+		for (int ctr = 0; ctr < input_means.length; ctr++) {
+			if(input_means[ctr] == 0) continue;
+			input_scaler[ctr] = 1/(input_means[ctr]);
+		}
+		
+	}
+	
 }
