@@ -34,6 +34,8 @@ public class Prediction {
 		this.point_prediction = y;
 		this.lower_bound = y - 1.96*predictive_deviance;
 		this.upper_bound = y + 1.96*predictive_deviance;
+//		this.lower_bound = y - 2.5758*predictive_deviance;
+//		this.upper_bound = y + 2.5758*predictive_deviance;
 		
 	}
 

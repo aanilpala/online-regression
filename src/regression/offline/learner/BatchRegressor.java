@@ -28,6 +28,8 @@ public abstract class BatchRegressor {
 		name = this.getClass().getName() + (map2fs ? "Mapped" : "");
 		name += training_set_size;
 		
+		name = name.split("\\.")[3];
+		
 		if(map2fs) {
 			nlinmap = new NLInputMapper(input_width, 2, true, true);
 			this.feature_count = nlinmap.feature_dim;
@@ -127,7 +129,7 @@ public abstract class BatchRegressor {
 	}
 
 	public String get_name() {
-		return name.split("\\.")[3];  
+		return name;  
 	}
 	
 	protected double[][] get_weights_cov_matrix(double[][][] training_set) throws Exception {

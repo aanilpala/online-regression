@@ -1,8 +1,7 @@
 package regression.util;
 
-import aima.core.util.math.*;
-
-import org.jscience.mathematics.number.Real;
+//import aima.core.util.math.*;
+//import org.jscience.mathematics.number.Real;
 
 import com.sun.accessibility.internal.resources.accessibility;
 
@@ -11,96 +10,96 @@ import sun.security.krb5.Realm;
 
 public class MatrixOp {
 	
-	public static Real[][] double2real(double[][] m) {
-		
-		int num_col = m[0].length;
-		int num_row = m.length;
-		
-		Real[][] r_m = new Real[num_row][num_col];
-		
-		for(int ctr = 0; ctr < num_row; ctr++) {
-			for(int ctr2 = 0; ctr2 < num_col; ctr2++) {
-				r_m[ctr][ctr] = Real.valueOf(m[ctr][ctr2]);
-			}
-		}
-		
-		return r_m;
-		
-	}
-	
-	public static double[][] real2double(Real[][] m) {
-		
-		int num_col = m[0].length;
-		int num_row = m.length;
-		
-		double[][] d_m = new double[num_row][num_col];
-		
-		for(int ctr = 0; ctr < num_row; ctr++) {
-			for(int ctr2 = 0; ctr2 < num_col; ctr2++) {
-				d_m[ctr][ctr] = m[ctr][ctr2].doubleValue();
-			}
-		}
-		
-		return d_m;
-	}
-	
-	public static double[][] mult_precision(double m1[][], double m2[][]) throws Exception{
-		
-		if(m1.length == 0) return new double[0][0];
-		if(m1[0].length != m2.length) throw new Exception("Incompatible sized matrices for multiplication");
-		 
-		int n = m1[0].length;
-		int m = m1.length;
-		int p = m2[0].length;
-		 
-		Real r_ans[][] = new Real[m][p];
-		
-		for(int i = 0;i < m;i++){
-			for(int j = 0;j < p;j++) {
-				for(int k = 0;k < n;k++){
-					if(r_ans[i][j] != null)
-						r_ans[i][j] = r_ans[i][j].plus(Real.valueOf(m1[i][k]).times(Real.valueOf(m2[k][j])));
-					else
-						r_ans[i][j] = Real.valueOf(m1[i][k]).times(Real.valueOf(m2[k][j]));
-				}
-			}
-		}
-		
-		return real2double(r_ans);
-	}
-	
-	public static double[][] scalarmult_precision(double[][] m, Real coeff) {
-		
-		int num_col = m[0].length;
-		int num_row = m.length;
-		
-		Real r_ans[][] = new Real[num_row][num_col]; 
-		
-		for(int ctr = 0; ctr < num_row; ctr++) {
-			for(int ctr2 = 0; ctr2 < num_col; ctr2++) {
-				r_ans[ctr][ctr2] = coeff.times(Real.valueOf(m[ctr][ctr2]));
-			}
-		}
-		
-		return real2double(r_ans);
-	}
-	
-	
-	public static double[][] scalardiv(double[][] m, Real d) {
-		
-		int num_col = m[0].length;
-		int num_row = m.length;
-		
-		Real r_ans[][] = new Real[num_row][num_col]; 
-		
-		for(int ctr = 0; ctr < num_row; ctr++) {
-			for(int ctr2 = 0; ctr2 < num_col; ctr2++) {
-				r_ans[ctr][ctr2] = (Real.valueOf(m[ctr][ctr2])).divide(d);
-			}
-		}
-		
-		return real2double(r_ans);
-	}
+//	public static Real[][] double2real(double[][] m) {
+//		
+//		int num_col = m[0].length;
+//		int num_row = m.length;
+//		
+//		Real[][] r_m = new Real[num_row][num_col];
+//		
+//		for(int ctr = 0; ctr < num_row; ctr++) {
+//			for(int ctr2 = 0; ctr2 < num_col; ctr2++) {
+//				r_m[ctr][ctr] = Real.valueOf(m[ctr][ctr2]);
+//			}
+//		}
+//		
+//		return r_m;
+//		
+//	}
+//	
+//	public static double[][] real2double(Real[][] m) {
+//		
+//		int num_col = m[0].length;
+//		int num_row = m.length;
+//		
+//		double[][] d_m = new double[num_row][num_col];
+//		
+//		for(int ctr = 0; ctr < num_row; ctr++) {
+//			for(int ctr2 = 0; ctr2 < num_col; ctr2++) {
+//				d_m[ctr][ctr] = m[ctr][ctr2].doubleValue();
+//			}
+//		}
+//		
+//		return d_m;
+//	}
+//	
+//	public static double[][] mult_precision(double m1[][], double m2[][]) throws Exception{
+//		
+//		if(m1.length == 0) return new double[0][0];
+//		if(m1[0].length != m2.length) throw new Exception("Incompatible sized matrices for multiplication");
+//		 
+//		int n = m1[0].length;
+//		int m = m1.length;
+//		int p = m2[0].length;
+//		 
+//		Real r_ans[][] = new Real[m][p];
+//		
+//		for(int i = 0;i < m;i++){
+//			for(int j = 0;j < p;j++) {
+//				for(int k = 0;k < n;k++){
+//					if(r_ans[i][j] != null)
+//						r_ans[i][j] = r_ans[i][j].plus(Real.valueOf(m1[i][k]).times(Real.valueOf(m2[k][j])));
+//					else
+//						r_ans[i][j] = Real.valueOf(m1[i][k]).times(Real.valueOf(m2[k][j]));
+//				}
+//			}
+//		}
+//		
+//		return real2double(r_ans);
+//	}
+//	
+//	public static double[][] scalarmult_precision(double[][] m, Real coeff) {
+//		
+//		int num_col = m[0].length;
+//		int num_row = m.length;
+//		
+//		Real r_ans[][] = new Real[num_row][num_col]; 
+//		
+//		for(int ctr = 0; ctr < num_row; ctr++) {
+//			for(int ctr2 = 0; ctr2 < num_col; ctr2++) {
+//				r_ans[ctr][ctr2] = coeff.times(Real.valueOf(m[ctr][ctr2]));
+//			}
+//		}
+//		
+//		return real2double(r_ans);
+//	}
+//	
+//	
+//	public static double[][] scalardiv(double[][] m, Real d) {
+//		
+//		int num_col = m[0].length;
+//		int num_row = m.length;
+//		
+//		Real r_ans[][] = new Real[num_row][num_col]; 
+//		
+//		for(int ctr = 0; ctr < num_row; ctr++) {
+//			for(int ctr2 = 0; ctr2 < num_col; ctr2++) {
+//				r_ans[ctr][ctr2] = (Real.valueOf(m[ctr][ctr2])).divide(d);
+//			}
+//		}
+//		
+//		return real2double(r_ans);
+//	}
 	
 	
 	
@@ -337,12 +336,12 @@ public class MatrixOp {
 		return Math.pow(result, 2);
 	}
 	
-	public static double get_det_of_psd_matrix_2(double[][] m) throws Exception {
-		
-		LUDecomposition a = new LUDecomposition(new Matrix(m));
-		
-		return Math.pow(a.det(), 2);
-	}
+//	public static double get_det_of_psd_matrix_2(double[][] m) throws Exception {
+//		
+//		LUDecomposition a = new LUDecomposition(new Matrix(m));
+//		
+//		return Math.pow(a.det(), 2);
+//	}
 	
 	public static double[][] invert_lower_tri_matrix(double[][] m) throws Exception {
 		

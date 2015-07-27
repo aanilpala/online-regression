@@ -13,7 +13,8 @@ public class GPWindowedGaussianKernelOLSMean extends GPWindowedBase {
 	
 	double[] mean_responses; //mean_response;
 	double[][] coeff_u; // coefficients of the mean function;
-
+	private double[][] mul1;
+	private double squared_ols_res_sum;
 	
 	public GPWindowedGaussianKernelOLSMean(int input_width, int window_size, double sigma_y, double sigma_w, boolean verbouse, int tuning_mode) {
 		super(input_width, window_size, sigma_y, sigma_w, tuning_mode, true);
@@ -21,8 +22,17 @@ public class GPWindowedGaussianKernelOLSMean extends GPWindowedBase {
 		this.verbouse = verbouse;
 		
 		mean_responses = new double[w_size];
+		mul1 = new double[3*input_width][3*input_width];
 		coeff_u = new double[3*input_width][1];
+		squared_ols_res_sum = 0;
 		
+		
+		for(int ctr = 0; ctr < 3*feature_count; ctr++) {
+			for(int ctr2 = 0; ctr2 < 3*feature_count; ctr2++) {
+				if(ctr == ctr2) mul1[ctr][ctr2] = 1;
+				else mul1[ctr][ctr2] = 0;
+			}
+		}
 	}
 	
 	@Override
@@ -56,11 +66,14 @@ public class GPWindowedGaussianKernelOLSMean extends GPWindowedBase {
 		}
 		
 		double kernel_measure = gaussian_kernel(scaled_dp, scaled_dp) - Math.pow(Math.E, 2*latent_log_hyperparams[0]);
-		double predictive_variance = kernel_measure - MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(spare_column), k_inv), spare_column)[0][0]; 
-		double predictive_deviance;
+		double predictive_variance = kernel_measure - MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(spare_column), k_inv), spare_column)[0][0];
 		
-		if(predictive_variance < 10E-20) predictive_deviance = 0;  // suspicious!
-		else predictive_deviance = Math.sqrt(predictive_variance);
+		
+		double predictive_deviance;
+		predictive_deviance = Math.sqrt(predictive_variance);
+		
+		if(slide && predictive_variance > 0 && predictive_deviance/y < 0.02)
+			predictive_deviance = Math.sqrt((squared_ols_res_sum/n)*MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(get_mapped_dp(scaled_dp)), mul1), get_mapped_dp(scaled_dp))[0][0] + (squared_ols_res_sum/n));
 		
 //		if(verbouse) System.out.println(mean_func(dp) + " + " + (y - mean_func(dp)) + ", with predictive variance: " + predictive_variance);
 		
@@ -68,7 +81,17 @@ public class GPWindowedGaussianKernelOLSMean extends GPWindowedBase {
 	}
 	
 	@Override
-	public void update(double[][] dp, double y, Prediction prediction) throws Exception {
+	public boolean update(double[][] dp, double y, Prediction prediction) throws Exception {
+		
+		if(slide && !high_error_flag) {
+			update_count++;
+			update_running_se(y, prediction.point_prediction);
+			return false;
+		}
+		else if(tuning_countdown == w_size) {
+			recompute_k();
+			recompute_k_inv();
+		}
 		
 		double[][] scaled_dp = scale_input(dp);
 		double scaled_y = target_prescaler(y);
@@ -80,7 +103,7 @@ public class GPWindowedGaussianKernelOLSMean extends GPWindowedBase {
 			// avg the response for the duplicate point
 			
 			responses[index][0] = (scaled_y + responses[index][0])/2.0;
-			return;
+			return true;
 		}
 		
 		double[][] shrunk = new double[w_size-1][w_size-1];
@@ -135,36 +158,36 @@ public class GPWindowedGaussianKernelOLSMean extends GPWindowedBase {
 		
 		// computing new k_inv
 		
-		double temp = MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(spare_column), shrunk_inv), spare_column)[0][0];
-		double spare_var_inv = (spare_var - temp);
-		spare_var = 1/spare_var_inv;
-				
-		double[][] temp_upper_left = MatrixOp.mult(shrunk_inv, MatrixOp.identitiy_add(MatrixOp.scalardiv(MatrixOp.mult(MatrixOp.mult(spare_column, MatrixOp.transpose(spare_column)), MatrixOp.transpose(shrunk_inv)), spare_var_inv), 1));
-				
-		spare_column = MatrixOp.scalardiv(MatrixOp.mult(shrunk_inv, spare_column), -1*spare_var_inv);		
-		
-		for(int ctr = 1; ctr < w_size; ctr++) {
-			for(int ctr2 = 1; ctr2 < w_size; ctr2++) {
-				k_inv[ctr-1][ctr2-1] = temp_upper_left[ctr-1][ctr2-1];
-			}
-		}
-		
-		for(int ctr = 1; ctr < w_size; ctr++) {
-			k_inv[ctr-1][w_size-1] = spare_column[ctr-1][0];
-			k_inv[w_size-1][ctr-1] = spare_column[ctr-1][0];
-		}
-		
-		k_inv[w_size-1][w_size-1] = spare_var;
+//		double temp = MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(spare_column), shrunk_inv), spare_column)[0][0];
+//		double spare_var_inv = (spare_var - temp);
+//		spare_var = 1/spare_var_inv;
+//				
+//		double[][] temp_upper_left = MatrixOp.mult(shrunk_inv, MatrixOp.identitiy_add(MatrixOp.scalardiv(MatrixOp.mult(MatrixOp.mult(spare_column, MatrixOp.transpose(spare_column)), MatrixOp.transpose(shrunk_inv)), spare_var_inv), 1));
+//				
+//		spare_column = MatrixOp.scalardiv(MatrixOp.mult(shrunk_inv, spare_column), -1*spare_var_inv);		
+//		
+//		for(int ctr = 1; ctr < w_size; ctr++) {
+//			for(int ctr2 = 1; ctr2 < w_size; ctr2++) {
+//				k_inv[ctr-1][ctr2-1] = temp_upper_left[ctr-1][ctr2-1];
+//			}
+//		}
+//		
+//		for(int ctr = 1; ctr < w_size; ctr++) {
+//			k_inv[ctr-1][w_size-1] = spare_column[ctr-1][0];
+//			k_inv[w_size-1][ctr-1] = spare_column[ctr-1][0];
+//		}
+//		
+//		k_inv[w_size-1][w_size-1] = spare_var;
 		
 //		double[][] k_inv_ref = null;
-//		
-//		try {
-//			k_inv_ref = MatrixOp.fast_invert_psd(k);
-//		}
-//		catch (Exception e) {
-//			System.out.println("SHIT");
-//		}
-//		
+		
+		try {
+			k_inv = MatrixOp.fast_invert_psd(k);
+		}
+		catch (Exception e) {
+			System.out.println("SHIT");
+		}
+		
 //		double deviance = MatrixOp.calc_deviance(k_inv_ref, k_inv);
 //		System.out.println(deviance);
 		
@@ -178,7 +201,7 @@ public class GPWindowedGaussianKernelOLSMean extends GPWindowedBase {
 		responses[w_end][0] = scaled_y;
 		mean_responses[w_end] = mean_func(scaled_dp);
 		
-		update_running_se(Math.abs(y - prediction.point_prediction));
+		update_running_se(y, prediction.point_prediction);
 		
 		if(slide) {
 			w_start = (w_start + 1) % w_size;
@@ -280,6 +303,11 @@ public class GPWindowedGaussianKernelOLSMean extends GPWindowedBase {
 			for(int ctr = 0; verbouse && ctr < latent_log_hyperparams.length; ctr++)
 				System.out.println("gradient " + ctr + " " + gradient[ctr]);
 		}
+//		else if(slide && update_count % 15 == 0) {
+//			recompute_k_inv();
+//		}
+		
+		return true;
 	}
 
 	private void recompute_means() throws Exception {
@@ -333,6 +361,20 @@ public class GPWindowedGaussianKernelOLSMean extends GPWindowedBase {
 			x_x_t = MatrixOp.identitiy_add(x_x_t, 0.1);
 			coeff_u = MatrixOp.mult(MatrixOp.fast_invert_psd(x_x_t), MatrixOp.mult(design_matrix, responses_vector));
 		}
+		
+	}
+	
+	double[][] get_mapped_dp(double[][] dp) {
+		
+		double[][] mapped = new double[3*feature_count][1];
+		
+		for(int ctr = 0; ctr < feature_count; ctr++){
+			mapped[ctr*3][0] = Math.sqrt(dp[ctr][0]);
+			mapped[ctr*3+1][0] = dp[ctr][0];
+			mapped[ctr*3+2][0] = dp[ctr][0]*dp[ctr][0];
+		}
+		
+		return mapped;
 	}
 	
 	private void fit_linear_mean_model(double[][] responses_vector) throws Exception {
@@ -350,7 +392,9 @@ public class GPWindowedGaussianKernelOLSMean extends GPWindowedBase {
 		
 		double[][] x_x_t = MatrixOp.mult(design_matrix, MatrixOp.transpose(design_matrix));
 		
-		coeff_u = MatrixOp.mult(MatrixOp.fast_invert_psd(x_x_t), MatrixOp.mult(design_matrix, responses_vector));
+		mul1 = MatrixOp.fast_invert_psd(x_x_t);
+		
+		coeff_u = MatrixOp.mult(mul1, MatrixOp.mult(design_matrix, responses_vector));
 		
 		boolean illegal_coeffs = false;
 		for (int ctr = 0; ctr < coeff_u.length; ctr++) {
@@ -362,8 +406,19 @@ public class GPWindowedGaussianKernelOLSMean extends GPWindowedBase {
 		
 		if(illegal_coeffs) {
 			x_x_t = MatrixOp.identitiy_add(x_x_t, 0.1);
-			coeff_u = MatrixOp.mult(MatrixOp.fast_invert_psd(x_x_t), MatrixOp.mult(design_matrix, responses_vector));
+			mul1 = MatrixOp.fast_invert_psd(x_x_t);
+			coeff_u = MatrixOp.mult(mul1, MatrixOp.mult(design_matrix, responses_vector));
 		}
+		
+		design_matrix = MatrixOp.transpose(design_matrix);
+		double[][] linear_fit = MatrixOp.mult(design_matrix, coeff_u);
+		
+		squared_ols_res_sum = 0;
+		for (int ctr = 0; ctr < n; ctr++) {
+			squared_ols_res_sum += Math.pow(Math.abs(linear_fit[ctr][0] - responses_vector[ctr][0]), 2);
+		}
+		
+		
 	}
 
 	private double mean_func_basic(double[][] dp) throws Exception {
@@ -392,12 +447,13 @@ public class GPWindowedGaussianKernelOLSMean extends GPWindowedBase {
 		return result;
 	}
 	
+	
 	@Override
 	public void update_scaling_factors() {
 		
-		if(target_mean != 0)
-			target_scaler = 1/(target_mean);
-		
+//		if(target_mean != 0)
+//			target_scaler = 0.1/(target_mean);
+//		
 		for (int ctr = 0; ctr < input_means.length; ctr++) {
 			if(input_means[ctr] == 0) continue;
 			input_scaler[ctr] = 1/(input_means[ctr]);

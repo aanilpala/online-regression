@@ -10,6 +10,8 @@ public class BayesianMLEWindowed extends WindowRegressor {
 	double[][] mul2;	// column matrices
 	double[][] params; // column matrices
 	
+	double window_se = 0;
+	
 	public BayesianMLEWindowed(int input_width, int window_size, boolean map2fs, int tuning_mode) {
 		
 		super(map2fs, input_width, window_size, tuning_mode);
@@ -42,13 +44,19 @@ public class BayesianMLEWindowed extends WindowRegressor {
 		
 		double pp = MatrixOp.mult(MatrixOp.transpose(dp), params)[0][0];
 		
-		double predictive_deviation = Math.sqrt(running_se*MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(dp), mul1), dp)[0][0] + running_se);
+		double predictive_deviation = Math.sqrt(window_se*MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(dp), mul1), dp)[0][0] + window_se);
 		
 		return new Prediction(target_postscaler(pp), target_postscaler(predictive_deviation));
 		
 	}
 	
-	public void update(double[][] org_dp, double org_y, Prediction prediction) throws Exception {
+	public boolean update(double[][] org_dp, double org_y, Prediction prediction) throws Exception {
+		
+		if(slide && !high_error_flag) {
+			update_count++;
+			update_running_se(org_y, prediction.point_prediction);
+			return false;
+		}
 		
 		if(map2fs) org_dp = nlinmap.map(org_dp);
 		
@@ -63,7 +71,7 @@ public class BayesianMLEWindowed extends WindowRegressor {
 			// avg the response for the duplicate point
 			
 			responses[index][0] = (y + responses[index][0])/2.0;
-			return;
+			return true;
 		} 
 		
 		// update mul2
@@ -132,13 +140,15 @@ public class BayesianMLEWindowed extends WindowRegressor {
 			
 		}
 		
+		update_running_se(org_y, prediction.point_prediction);
+		
 		count_dps_in_window(); // this sets n;
 		long squared_res_sum = 0;
 		
 		for(int ptr = w_start, ctr = 0; ctr < n; ptr = (ptr + 1) % w_size, ctr++)
 			squared_res_sum += (long) Math.pow((responses[ptr][0] - MatrixOp.mult(MatrixOp.transpose(dp_window[ptr]), params)[0][0])*10000, 2);
 		
-		running_se = squared_res_sum / (100000000.0*n);
+		window_se = squared_res_sum / (100000000.0*n);
 		
 		update_count++;
 		
@@ -182,8 +192,10 @@ public class BayesianMLEWindowed extends WindowRegressor {
 			for(int ptr = w_start, ctr = 0; ctr < n; ptr = (ptr + 1) % w_size, ctr++)
 				squared_res_sum += (long) Math.pow((responses[ptr][0] - MatrixOp.mult(MatrixOp.transpose(dp_window[ptr]), params)[0][0])*10000, 2);
 			
-			running_se = squared_res_sum / (100000000.0*n);
+			window_se = squared_res_sum / (100000000.0*n);
 		}
+		
+		return true;
 		
 	}
 

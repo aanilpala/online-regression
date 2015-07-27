@@ -11,6 +11,7 @@ public abstract class OnlineRegressor {
 	public String name;
 	
 	public int update_count;
+	public int high_error_start_point;
 	public int burn_in_count;
 	
 	protected double[] input_scaler;
@@ -37,6 +38,7 @@ public abstract class OnlineRegressor {
 		}
 		
 		update_count = 0;
+		high_error_start_point = 0;
 		
 		input_scaler = new double[feature_count];
 		input_means = new double[feature_count];
@@ -57,10 +59,10 @@ public abstract class OnlineRegressor {
 	
 	public void update_running_means(double[][] dp, double target) {
 		
-		target_mean = target_mean + (target - target_mean)/update_count;
+		target_mean = (target_mean*((update_count - high_error_start_point)-1) + Math.abs(target))/(update_count - high_error_start_point);
 		
 		for (int ctr = 0; ctr < input_means.length; ctr++)
-			input_means[ctr] = input_means[ctr] + (dp[ctr][0] - input_means[ctr])/update_count;
+			input_means[ctr] = (input_means[ctr]*((update_count - high_error_start_point)-1) + dp[ctr][0])/(update_count - high_error_start_point);
 		
 	}
 	
@@ -93,7 +95,7 @@ public abstract class OnlineRegressor {
 	}
 	
 	public Prediction predict(double[][] dp) throws Exception { return null; };
-	public void update(double[][] dp, double y, Prediction prediction) throws Exception {}
+	public boolean update(double[][] dp, double y, Prediction prediction) throws Exception { return false; };
 
 	public int get_burn_in_number() {return burn_in_count; };
 	

@@ -64,7 +64,13 @@ public class GPWindowedGaussianKernelAvgMean extends GPWindowedBase {
 	}
 	
 	@Override
-	public void update(double[][] org_dp, double org_y, Prediction prediction) throws Exception {
+	public boolean update(double[][] org_dp, double org_y, Prediction prediction) throws Exception {
+		
+		if(slide && !high_error_flag) {
+			update_count++;
+			update_running_se(org_y, prediction.point_prediction);
+			return false;
+		}
 		
 		double[][] dp = scale_input(org_dp);
 		double y = target_prescaler(org_y);
@@ -80,7 +86,7 @@ public class GPWindowedGaussianKernelAvgMean extends GPWindowedBase {
 			running_window_sum -= temp;
 			running_window_sum += responses[index][0];
 			
-			return;
+			return true;
 		}
 		
 		double[][] shrunk = new double[w_size-1][w_size-1];
@@ -179,7 +185,7 @@ public class GPWindowedGaussianKernelAvgMean extends GPWindowedBase {
 		responses[w_end][0] = y;
 		//mean_responses[w_end] = mean_func(dp);
 		
-		update_running_se(Math.abs(org_y - prediction.point_prediction));
+		update_running_se(org_y, prediction.point_prediction);
 		
 		if(slide) {
 			running_window_sum -= temp;
@@ -276,6 +282,8 @@ public class GPWindowedGaussianKernelAvgMean extends GPWindowedBase {
 			for(int ctr = 0; verbouse && ctr < latent_log_hyperparams.length; ctr++)
 				if(verbouse) System.out.println("gradient " + ctr + " " + gradient[ctr]);
 		}
+		
+		return true;
 		
 	}
 

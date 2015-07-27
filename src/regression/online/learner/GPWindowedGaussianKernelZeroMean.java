@@ -4,8 +4,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Random;
 
-import org.jscience.mathematics.number.Real;
-
 import regression.online.model.Prediction;
 import regression.util.CholeskyDecom;
 import regression.util.MatrixOp;
@@ -64,7 +62,13 @@ public class GPWindowedGaussianKernelZeroMean extends GPWindowedBase {
 	}
 	
 	@Override
-	public void update(double[][] org_dp, double org_y, Prediction prediction) throws Exception {
+	public boolean update(double[][] org_dp, double org_y, Prediction prediction) throws Exception {
+		
+		if(slide && !high_error_flag) {
+			update_count++;
+			update_running_se(org_y, prediction.point_prediction);
+			return false;
+		}
 		
 		double[][] dp = scale_input(org_dp);
 		double y = target_prescaler(org_y);
@@ -76,7 +80,7 @@ public class GPWindowedGaussianKernelZeroMean extends GPWindowedBase {
 			// avg the response for the duplicate point
 			
 			responses[index][0] = (y + responses[index][0])/2.0;
-			return;
+			return true;
 		}
 		
 		double[][] shrunk = new double[w_size-1][w_size-1];
@@ -136,37 +140,37 @@ public class GPWindowedGaussianKernelZeroMean extends GPWindowedBase {
 		
 		// computing new k_inv
 		
-		double temp = MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(spare_column), shrunk_inv), spare_column)[0][0];
-		double spare_var_inv = (spare_var - temp);
-		spare_var = 1/spare_var_inv;
-				
-		double[][] temp_upper_left = MatrixOp.mult(shrunk_inv, MatrixOp.identitiy_add(MatrixOp.scalardiv(MatrixOp.mult(MatrixOp.mult(spare_column, MatrixOp.transpose(spare_column)), MatrixOp.transpose(shrunk_inv)), spare_var_inv), 1));
-				
-		spare_column = MatrixOp.scalardiv(MatrixOp.mult(shrunk_inv, spare_column), -1*spare_var_inv);		
-		
-		for(int ctr = 1; ctr < w_size; ctr++) {
-			for(int ctr2 = 1; ctr2 < w_size; ctr2++) {
-				k_inv[ctr-1][ctr2-1] = temp_upper_left[ctr-1][ctr2-1];
-			}
-		}
-		
-		for(int ctr = 1; ctr < w_size; ctr++) {
-			k_inv[ctr-1][w_size-1] = spare_column[ctr-1][0];
-			k_inv[w_size-1][ctr-1] = spare_column[ctr-1][0];
-		}
-		
-		k_inv[w_size-1][w_size-1] = spare_var;
+//		double temp = MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(spare_column), shrunk_inv), spare_column)[0][0];
+//		double spare_var_inv = (spare_var - temp);
+//		spare_var = 1/spare_var_inv;
+//				
+//		double[][] temp_upper_left = MatrixOp.mult(shrunk_inv, MatrixOp.identitiy_add(MatrixOp.scalardiv(MatrixOp.mult(MatrixOp.mult(spare_column, MatrixOp.transpose(spare_column)), MatrixOp.transpose(shrunk_inv)), spare_var_inv), 1));
+//				
+//		spare_column = MatrixOp.scalardiv(MatrixOp.mult(shrunk_inv, spare_column), -1*spare_var_inv);		
+//		
+//		for(int ctr = 1; ctr < w_size; ctr++) {
+//			for(int ctr2 = 1; ctr2 < w_size; ctr2++) {
+//				k_inv[ctr-1][ctr2-1] = temp_upper_left[ctr-1][ctr2-1];
+//			}
+//		}
+//		
+//		for(int ctr = 1; ctr < w_size; ctr++) {
+//			k_inv[ctr-1][w_size-1] = spare_column[ctr-1][0];
+//			k_inv[w_size-1][ctr-1] = spare_column[ctr-1][0];
+//		}
+//		
+//		k_inv[w_size-1][w_size-1] = spare_var;
 		
 		
 //		double[][] k_inv_ref = null;
-//		
-//		try {
-//			k_inv_ref = MatrixOp.fast_invert_psd(k);
-//		}
-//		catch (Exception e) {
-//			System.out.println("SHIT");
-//		}
-//		
+		
+		try {
+			k_inv = MatrixOp.fast_invert_psd(k);
+		}
+		catch (Exception e) {
+			System.out.println("SHIT");
+		}
+		
 //		double deviance = MatrixOp.calc_deviance(k_inv_ref, k_inv);
 //		System.out.println(deviance);
 		
@@ -179,7 +183,7 @@ public class GPWindowedGaussianKernelZeroMean extends GPWindowedBase {
 		
 		responses[w_end][0] = y;
 		
-		update_running_se(Math.abs(org_y - prediction.point_prediction));
+		update_running_se(org_y, prediction.point_prediction);
 		
 		
 		if(slide) {
@@ -270,6 +274,8 @@ public class GPWindowedGaussianKernelZeroMean extends GPWindowedBase {
 		else if(slide && update_count % 25 == 0) {
 			recompute_k_inv();
 		}
+		
+		return true;
 	}
 	
 	@Override

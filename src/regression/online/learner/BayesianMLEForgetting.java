@@ -64,7 +64,7 @@ public class BayesianMLEForgetting extends OnlineRegressor {
 		
 	}
 	
-	public void update(double[][] dp, double y, Prediction prediction) throws Exception {
+	public boolean update(double[][] dp, double y, Prediction prediction) throws Exception {
 		
 		if(map2fs) dp = nlinmap.map(dp);
 		
@@ -136,6 +136,7 @@ public class BayesianMLEForgetting extends OnlineRegressor {
 		
 		update_count++;
 		
+		return true;
 	}
 	
 	public void print_params() {

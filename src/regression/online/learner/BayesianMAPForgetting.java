@@ -73,7 +73,7 @@ public class BayesianMAPForgetting extends OnlineRegressor {
 		
 	}
 	
-	public void update(double[][] dp, double y, Prediction prediction) throws Exception {
+	public boolean update(double[][] dp, double y, Prediction prediction) throws Exception {
 		
 		if(map2fs) dp = nlinmap.map(dp);
 		
@@ -144,6 +144,8 @@ public class BayesianMAPForgetting extends OnlineRegressor {
 		}
 		
 		update_count++;
+		
+		return true;
 		
 	}
 	

@@ -310,7 +310,7 @@ public class BatchRegressorTest {
 							+ each.ptr + "\t"
 							+ -1.0 + "\t"
 							+ -1.0 + "\t"
-							+ -1.0 + "\n");
+							+ -1 + "\n");
 							
 				} catch (IOException e) {
 					e.printStackTrace();

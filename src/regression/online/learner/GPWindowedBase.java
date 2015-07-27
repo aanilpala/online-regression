@@ -4,8 +4,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Random;
 
-import org.jscience.mathematics.number.Real;
-
 import regression.util.MatrixOp;
 
 public abstract class GPWindowedBase extends WindowRegressor{
@@ -104,7 +102,7 @@ public abstract class GPWindowedBase extends WindowRegressor{
 		
 		// optimizer parameters
 		int iteration_counter = 0;
-		int max_it = 10;
+		int max_it = 35;
 		double decayer = 0.1;
 		int decay_counter;
 		int max_decay_count = 10;
