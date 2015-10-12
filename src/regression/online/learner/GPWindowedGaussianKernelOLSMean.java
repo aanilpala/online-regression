@@ -84,8 +84,8 @@ public class GPWindowedGaussianKernelOLSMean extends GPWindowedBase {
 	public boolean update(double[][] dp, double y, Prediction prediction) throws Exception {
 		
 		if(slide && !high_error_flag) {
-			update_count++;
 			update_running_se(y, prediction.point_prediction);
+			update_count++;
 			return false;
 		}
 		else if(tuning_countdown == w_size) {
@@ -158,38 +158,40 @@ public class GPWindowedGaussianKernelOLSMean extends GPWindowedBase {
 		
 		// computing new k_inv
 		
-//		double temp = MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(spare_column), shrunk_inv), spare_column)[0][0];
-//		double spare_var_inv = (spare_var - temp);
-//		spare_var = 1/spare_var_inv;
-//				
-//		double[][] temp_upper_left = MatrixOp.mult(shrunk_inv, MatrixOp.identitiy_add(MatrixOp.scalardiv(MatrixOp.mult(MatrixOp.mult(spare_column, MatrixOp.transpose(spare_column)), MatrixOp.transpose(shrunk_inv)), spare_var_inv), 1));
-//				
-//		spare_column = MatrixOp.scalardiv(MatrixOp.mult(shrunk_inv, spare_column), -1*spare_var_inv);		
-//		
-//		for(int ctr = 1; ctr < w_size; ctr++) {
-//			for(int ctr2 = 1; ctr2 < w_size; ctr2++) {
-//				k_inv[ctr-1][ctr2-1] = temp_upper_left[ctr-1][ctr2-1];
-//			}
-//		}
-//		
-//		for(int ctr = 1; ctr < w_size; ctr++) {
-//			k_inv[ctr-1][w_size-1] = spare_column[ctr-1][0];
-//			k_inv[w_size-1][ctr-1] = spare_column[ctr-1][0];
-//		}
-//		
-//		k_inv[w_size-1][w_size-1] = spare_var;
+		double temp = MatrixOp.mult(MatrixOp.mult(MatrixOp.transpose(spare_column), shrunk_inv), spare_column)[0][0];
+		double spare_var_inv = (spare_var - temp);
+		spare_var = 1/spare_var_inv;
+				
+		double[][] temp_upper_left = MatrixOp.mult(shrunk_inv, MatrixOp.identitiy_add(MatrixOp.scalardiv(MatrixOp.mult(MatrixOp.mult(spare_column, MatrixOp.transpose(spare_column)), MatrixOp.transpose(shrunk_inv)), spare_var_inv), 1));
+				
+		spare_column = MatrixOp.scalardiv(MatrixOp.mult(shrunk_inv, spare_column), -1*spare_var_inv);		
+		
+		for(int ctr = 1; ctr < w_size; ctr++) {
+			for(int ctr2 = 1; ctr2 < w_size; ctr2++) {
+				k_inv[ctr-1][ctr2-1] = temp_upper_left[ctr-1][ctr2-1];
+			}
+		}
+		
+		for(int ctr = 1; ctr < w_size; ctr++) {
+			k_inv[ctr-1][w_size-1] = spare_column[ctr-1][0];
+			k_inv[w_size-1][ctr-1] = spare_column[ctr-1][0];
+		}
+		
+		k_inv[w_size-1][w_size-1] = spare_var;
 		
 //		double[][] k_inv_ref = null;
-		
-		try {
-			k_inv = MatrixOp.fast_invert_psd(k);
-		}
-		catch (Exception e) {
-			System.out.println("SHIT");
-		}
-		
+//		
+//		try {
+//			k_inv_ref = MatrixOp.fast_invert_psd(k);
+//		}
+//		catch (Exception e) {
+//			System.out.println("SHIT");
+//		}
+//		
 //		double deviance = MatrixOp.calc_deviance(k_inv_ref, k_inv);
-//		System.out.println(deviance);
+//		
+//		if(deviance > 1.0)
+//			System.out.println(deviance);
 		
 		
 		// sliding the dp_window
@@ -303,9 +305,9 @@ public class GPWindowedGaussianKernelOLSMean extends GPWindowedBase {
 			for(int ctr = 0; verbouse && ctr < latent_log_hyperparams.length; ctr++)
 				System.out.println("gradient " + ctr + " " + gradient[ctr]);
 		}
-//		else if(slide && update_count % 15 == 0) {
-//			recompute_k_inv();
-//		}
+		else if(slide && update_count % 15 == 0) {
+			recompute_k_inv();
+		}
 		
 		return true;
 	}
@@ -456,7 +458,7 @@ public class GPWindowedGaussianKernelOLSMean extends GPWindowedBase {
 //		
 		for (int ctr = 0; ctr < input_means.length; ctr++) {
 			if(input_means[ctr] == 0) continue;
-			input_scaler[ctr] = 1/(input_means[ctr]);
+			input_scaler[ctr] = 100/(input_means[ctr]);
 		}
 		
 	}

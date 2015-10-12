@@ -1,0 +1,33 @@
+% Chapter Template
+
+\chapter{Introduction} % Main chapter title
+
+\label{Chapter1} % Change X to a consecutive number; for referencing this chapter elsewhere, use \ref{ChapterX}
+
+\lhead{Chapter 1. \emph{Introduction}} % Change X to a consecutive number; this is for the header on each page - perhaps a shortened title
+
+%----------------------------------------------------------------------------------------
+%	SECTION 1
+%----------------------------------------------------------------------------------------
+
+\section{Motivation}
+\label{motivation}
+
+Never-ending demand for faster data processing has compelled the database community to look for creative ways to accelerate database operations. In a world where the computing hardware is getting more diverse, the idea of involving more diverse hardware to achieve better performance by exploiting parallelism among different processing units gave birth to the use of heterogeneous hardware for data processing. However, there is a price to pay for bringing the hardware heterogeneity into data-processing before enjoying its benefits. Ensuring the program portability of software across different platforms is obviously the first challenge to be dealt with. Frameworks such as OpenCL (Open Computing Language) is developed for this purpose and it is also employed by hardware-oblivious databases \cite{heimel_hardware-oblivious_2013}. However, ensuring the portability is not the only challenge to be tackled. Exploding number of combinations of hardware which could be present together is a game-changer for database-tuning as it makes the hand-tuning of database engines for the all possible hardware combinations more tedious task than ever. This suggests that smarter approaches to database-tuning is necessary. Self-adaptive database engines which can tune themselves to underlying hardware on the fly is the new direction database-tuning is veering off.
+
+Hardware-oblivious self-adaptive databases typically employ machine learning approaches for self-tuning. Tuning procedure involves two decision-making processes. First, enabling database engine to make good decisions on which hardware to use for a given operation. In \cite{heimel_demonstrating_2014}, online learning algorithms are used to discover decision boundaries for choosing the most suitable processing unit at the execution engine’s disposal for offloading operator data on the fly. Second decision process involves choosing the most suitable algorithm for a given task on the hardware that was selected for that task. Fitness criterion used in choosing among different alternatives is typically the running time of the candidate hardware/algorithm given an operator such as scan, join, etc. Therefore, An operator performance estimator is needed which aforementioned decision-making processes can rely on.
+
+From the machine learning perspective, operator performance estimation is a regression task. In a self-adaptive database-optimization, dynamics of the system to be learned continuously changes as a result of complex interplay of the decision-making processes mentioned. This entails dealing with a dynamic environment necessitating the use of online learning approaches rather than offline alternatives. Another reason for online learning stems from a more practical reason. As the performance estimating is rather a tool for better decision-making, it is too secondary to be treated as a standalone learning problem with separate training and testing phases. Therefore, the performance estimator module is expected to estimate the performance and learn on the fly as more queries are passed to the database and processed.
+
+This thesis explores, analyses, evaluates and compares different online machine learning techniques for the online regression problem posed by a hardware-oblivious self-tuning database.
+
+\section{Structure of This Thesis}
+
+This thesis consists of 7 chapters including the \textit{Introduction}. Chapter \ref{Chapter2}  recaps the theoretical foundations which is essential for a good understanding of the thesis work done. This includes topics such as Query Cost Modeling, Statistical Learning Theory and Data Stream Mining. Chapter \ref{Chapter3} presents the problem for which an effective and feasible solution is searched. Chapter \ref{Chapter4} discusses the theoretical details of the suitable approaches to be employed for the problem. A thorough investigation of the existing regression algorithms that can be made to operate in an online fashion is presented in this chapter. Chapter \ref{Chapter5} discusses the implementation details of the online regression algorithms found theoretically suitable for the problem. Chapter \ref{Chapter6} presents evaluation criteria for evaluating the implemented online regression algorithms discussed. It also defines various metrics for testing the employability of the algorithms for the problem at hand according to the evaluation criteria presented. Furthermore it visualizes some of the experiments carried out and draw conclusions about the nature of the online learning algorithms. Chapter \ref{Chapter7} presents a general comparison table for the online learning algorithms that are evaluated in Chapter \ref{Chapter6} in the light of the experiment results presented. Moreover, it discusses the potential improvements and future work on online regression.
+
+
+
+
+
+
+

@@ -31,7 +31,7 @@ import regression.online.learner.obsolete.BayesianPredictiveWindowed;
 import regression.online.learner.obsolete.BayesianPredictiveWindowedMapped;
 import regression.online.model.Prediction;
 
-public class OnlineRegressorTest2 {
+public class OnlineRegressorTest {
 
 	public OnlineRegressor reg;
 	
@@ -50,7 +50,7 @@ public class OnlineRegressorTest2 {
 	
 	private boolean st;
 	
-	public OnlineRegressorTest2(OnlineRegressor reg, TestCase testcase) {
+	public OnlineRegressorTest(OnlineRegressor reg, TestCase testcase) {
 		
 		this.data_points = testcase.data_points;
 		this.responses = testcase.responses;
@@ -181,7 +181,7 @@ public class OnlineRegressorTest2 {
 						
 					accumulated_squared_error_wcd += Math.pow((pred.point_prediction - response)*100, 2);
 					
-					if(ctr % 1000 > burn_in_number)
+					if(ctr > burn_in_number)
 						accumulated_squared_error_wocd += Math.pow((pred.point_prediction - response)*100, 2);
 				}
 				else {
@@ -201,7 +201,7 @@ public class OnlineRegressorTest2 {
 						
 					accumulated_squared_error_wcd2 += Math.pow((pred.point_prediction - response)*100, 2);
 					
-					if(ctr % 1000 > burn_in_number)
+					if(ctr % 1000 >= burn_in_number)
 						accumulated_squared_error_wocd2 += Math.pow((pred.point_prediction - response)*100, 2);
 				}
 			}
@@ -365,7 +365,7 @@ public class OnlineRegressorTest2 {
 				try{
 					String name = file.getName();
 					
-					boolean is_st = name.split("\\_")[2] == "NCD" ? true : false;
+					boolean is_st = name.split("\\_")[2] == "CD" ? false : true;
 //					int dim = Integer.parseInt(name.split("\\_")[4]);
 					
 					// for debugging
@@ -393,45 +393,46 @@ public class OnlineRegressorTest2 {
 			e.printStackTrace();
 		}
 		
-		HashMap<String, List<OnlineRegressorTest2>> regtests = new HashMap<String, List<OnlineRegressorTest2>>();
+		HashMap<String, List<OnlineRegressorTest>> regtests = new HashMap<String, List<OnlineRegressorTest>>();
 		for(TestCase testcase : test_cases) {
 			List<OnlineRegressor> regs = new ArrayList<OnlineRegressor>();
 			
 			int input_width = testcase.input_width;
 			
-			int window_sizes[] = new int[]{32, 64, 128};
+			int window_sizes[] = new int[]{64,96};
 			double forgetting_factors[] = new double[]{0.0, 0.05, 0.1};
 			
 			for(double forgetting_factor : forgetting_factors) {
-				regs.add(new BayesianMLEForgetting(input_width, forgetting_factor, false));	// Ad-Hoc prediction intervals
-				regs.add(new BayesianMLEForgetting(input_width, forgetting_factor, true));		// Ad-Hoc prediction intervals
-////				
-				regs.add(new BayesianMAPForgetting(input_width, forgetting_factor, false, 0.1, 2));	// Ad-Hoc prediction intervals
-				regs.add(new BayesianMAPForgetting(input_width, forgetting_factor, true, 0.1, 2));		// Ad-Hoc prediction intervals
+//				regs.add(new BayesianMLEForgetting(input_width, forgetting_factor, false));	// Ad-Hoc prediction intervals
+//				regs.add(new BayesianMLEForgetting(input_width, forgetting_factor, true));		// Ad-Hoc prediction intervals
+//				
+//				regs.add(new BayesianMAPForgetting(input_width, forgetting_factor, false, 0.1, 2));	// Ad-Hoc prediction intervals
+//				regs.add(new BayesianMAPForgetting(input_width, forgetting_factor, true, 0.1, 2));		// Ad-Hoc prediction intervals
 			}
 			
 			for(int w_size : window_sizes) {
-				regs.add(new BayesianMLEWindowed(input_width, w_size, false, 1));	// OLS asymptotic prediction intervals
-				regs.add(new BayesianMLEWindowed(input_width, w_size, true, 1));	// OLS asymptotic prediction intervals
+//				regs.add(new BayesianMLEWindowed(input_width, w_size, false, 1));	// OLS asymptotic prediction intervals
+//				regs.add(new BayesianMLEWindowed(input_width, w_size, true, 1));	// OLS asymptotic prediction intervals
 //
-				regs.add(new BayesianMAPWindowed(input_width, w_size, false, 0.1, 2, 1));	// OLS asymptotic prediction intervals
-				regs.add(new BayesianMAPWindowed(input_width, w_size, true, 0.1, 2, 1));	// OLS asymptotic prediction intervals
+//				regs.add(new BayesianMAPWindowed(input_width, w_size, false, 0.1, 2, 1));	// OLS asymptotic prediction intervals
+//				regs.add(new BayesianMAPWindowed(input_width, w_size, true, 0.1, 2, 1));	// OLS asymptotic prediction intervals
 //
 				regs.add(new KernelRegression(input_width, w_size, 1));	// Confidence Intervals instead of Prediction Intervals
 //				
 				regs.add(new GPWindowedGaussianKernelOLSMean(input_width, w_size, 0.1, 2, false, 1));		// OLS models the data as much as it can and the residuals are modeled by the GP Regression
 				regs.add(new GPWindowedGaussianKernelZeroMean(input_width, w_size, 0.1, 2, false, 1, false));
+				regs.add(new GPWindowedGaussianKernelAvgMean(input_width, w_size, 0.1, 2, false, 1, false));
 			}
 			
 			for(OnlineRegressor each : regs) {
 				String cur_id = each.name;
-				List<OnlineRegressorTest2> cur_tests = regtests.get(cur_id);
+				List<OnlineRegressorTest> cur_tests = regtests.get(cur_id);
 				if(cur_tests == null) {
-					cur_tests = new ArrayList<OnlineRegressorTest2>();
+					cur_tests = new ArrayList<OnlineRegressorTest>();
 					regtests.put(cur_id, cur_tests);
 				}
 				
-				cur_tests.add(new OnlineRegressorTest2(each, testcase));
+				cur_tests.add(new OnlineRegressorTest(each, testcase));
 			}	
 			
 			// FOR TESTING
@@ -440,9 +441,9 @@ public class OnlineRegressorTest2 {
 
 		for(String name : regtests.keySet()) {
 			
-			List<OnlineRegressorTest2> cur_tests = regtests.get(name);
+			List<OnlineRegressorTest> cur_tests = regtests.get(name);
 			
-			for(OnlineRegressorTest2 each : cur_tests) {
+			for(OnlineRegressorTest each : cur_tests) {
 				each.test(true);
 				try {
 					comparison_table_fw.write(each.getRegName() + "\t" 

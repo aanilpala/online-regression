@@ -32,10 +32,18 @@ public class Prediction {
 		if(predictive_deviance < 0) throw new Exception("NEGATIVE PREDICTIVE VARIANCE! THIS SHOULD NOT HAPPEN!");
 		
 		this.point_prediction = y;
-		this.lower_bound = y - 1.96*predictive_deviance;
-		this.upper_bound = y + 1.96*predictive_deviance;
-//		this.lower_bound = y - 2.5758*predictive_deviance;
-//		this.upper_bound = y + 2.5758*predictive_deviance;
+		
+//		this.lower_bound = y - 1.96*predictive_deviance;
+//		this.upper_bound = y + 1.96*predictive_deviance;
+		
+//		this.lower_bound = y - 2.58*predictive_deviance;
+//		this.upper_bound = y + 2.58*predictive_deviance;
+		
+		this.lower_bound = y - 3.29*predictive_deviance;
+		this.upper_bound = y + 3.29*predictive_deviance;
+		
+		
+		
 		
 	}
 

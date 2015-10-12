@@ -1,0 +1,206 @@
+% Chapter 2
+
+\chapter{Foundations} % Main chapter title
+
+\label{Chapter2} % For referencing the chapter elsewhere, use \ref{Chapter1} 
+
+\lhead{Chapter 2. \emph{Foundations}} % This is for the header on each page - perhaps a shortened title
+
+\section{Query Cost Modeling}
+
+Query cost modeling is the primary task for query performance prediction. The way the queries and the operators which make up them are represented has profound implications on the quality of performance estimations. As the cost depends on the operator algorithms and since the time complexity of the algorithms used for query operators are well-known, intuitively speaking, cost of a particular operator can be easily calculated by evaluating the complexity formula given input sizes in number of tuples and number of blocks. Such analytical cost models predicting the number of I/O operations are commonly employed by query optimizers to select cheapest plan among different alternatives. 
+
+\begin{ex}
+Consider the join of two relations namely $R(A,B)$ and $S(A,C)$ on the column $A$. Block sizes of $R$ and $S$ are estimated to be 100 and 150 respectively and number of tuples in the relations are estimated to be 1500 and 2000 each respectively. The analytical cost model for block-based nested loop join is $B(R) + B(S)\times B(R)/(M-1)$ I/Os. As for tuple-based nested loop join, the analytical cost model is $T(R)\times T(S)$ I/Os. With these cost models and the sizes of the relations (in number of blocks and in number of tuples occur in the blocks), one can calculate the cost estimations in number of I/Os as follows. 
+\begin{align*}
+	\text{cost(block-based join)} & = B(R) + B(S)\times B(R)/(M-1) = 100 + 150\times(100/(M-1)) \\ 
+	\text{cost(tuple-based join)} & = T(R)\times T(S) = 1500\times2000
+\end{align*} 
+\end{ex}
+The estimations made by analytical cost models can be good enough to compare algorithms and decide which algorithm runs faster for plan selection. However, for making accurate predictions on the running time of an operator, use of such analytical models often results in inaccurate running time estimations. This is because, the actual cost depends so many environment-dependent parameters that are not possible to be hardcoded into an analytical cost model. Among such environment-dependent parameters are the hit ratio of various caches exist in the computing hardware such as instruction and memory caches of CPUs, cache of non-volatile memory, the number of available buffers at the moment the operator gets to execute, hard drive disk head motion speed characteristics, etc. In heterogeneous environments where the different hardware with different performance characteristics, a reliable analytical cost-model would have to consider even more things such as inter-device transfer speed, I/O costs for the selected device (note that I/O operations can behave very differently depending on the hardware) and so on. As coming up with a reliable analytical cost-model is very difficult and often impossible to achieve, model-learning techniques are employed to learn the underlying environment-dependent cost-models.
+
+When learning approaches are employed, typically two different ways of modeling queries are used namely coarser plan-level models and finer-granular operator-level models. The choice between the two depends on the application for which the cost models will be used. While some applications can utilize both types of query cost models, some others strictly require finer-granular operator-models. For instance, for the applications where the accurate measurement of the total cost of the queries is the only major point of interest such as join ordering or plan-selection, the plan-level cost-models can be used as well as the operator-level models. On the other hand, some other applications might need separate estimations of each different operator which queries are composed of explicitly. For example, an operator offloader module of a database engine deployed on a distributed system needs running times of different operators rather than the total running time estimation of a query to be able to decide which hardware to offload the operators to. \cite{akdere_learning-based_2012} discusses both types of query models and compares them in terms of their capability of making accurate predictions of the total query running time. In addition to these two models that sit at the opposite ends of the spectrum in terms of their modeling granularity, they explore the hybrid models where some portions of the execution tree of a query are considered as a separate operator and modeled as a whole and the operators of the rest of the execution tree are modeled one by one in finer-granular fashion as in the operator-level planning. In this thesis, only the operator-level cost models are the point of interest. {\it{Problem}} section explores the details of the learning problem to be tackled and makes it obvious why strictly the cost models with finer-granulation is needed. 
+
+Regardless of the granularity of the cost model to be learned, from the machine learning perspective, the big picture remains the same. There is an {\it{unknown}} function which is too complex to be modeled analytically and from the past observations of the inputs and the outputs of this function, we attempt to build predictive models to estimate the output of the unknown function given an input.
+
+\section{Statistical Learning}
+
+As Vapnik describes in {\citep[pp. 17-19]{vapnik_nature_2000}, the main objective of a learning process is to minimize the risk functional
+\begin{flalign} 
+\label{def_2.1}
+R_{\alpha}=\int L(y,f(\pmb{x},\alpha)d(p(\pmb{x},y)), \quad f \in \mathbb{F}
+\end{flalign} 
+on the i.i.d sample of $(\pmb{x},y)$ values where $f$ is the function that maps inputs to target space, $\alpha$ denotes the variable by which the function selection is parameterized in the function space $\mathcal{F}$ that $f$ belongs to, $L$ is the loss function which computes the amount of penalty incurred by comparing the target estimation and the target and finally $p$ is the (unknown) function that returns the joint probability density for a given input point $\bf{x}$ and target $y$.
+
+Risk minimization framework very neatly distinguishes the different components of the learning process. More specifically, the criteria that assigns loss values to the individual predictions is abstracted away from the choice of the function space $\mathcal{F}$ where the optimization over $\alpha$ is done. These two different integral parts of the Risk Minimization framework can be adapted to different classes of learning problems such as \textit{Regression Estimation}, \textit{Density Estimation} and \textit{Pattern Recognition}. Although, these problems are fairly different in their nature, the same risk minimization framework can be used for them thanks to the flexibility of the framework.
+
+\subsection{Choice of Loss Function}
+
+Different kinds of learning problems typically use different loss functions to measure the amount of deviation from what is considered to be \textit{accurate} in the context of a particular learning problem. In the case of classification problems, mostly the loss function used is \textit{0-1 Loss Function}. This function either penalizes an individual prediction by recording the value of 1 as the penalty incurred or not by simply returning 0. For the learning scenarios where the prediction error cannot be easily measured by a quantitative measure or it could be but what matters is whether a prediction is approximately accurate or not rather than how \textit{much} it is off, 0-1 loss function could be a good choice. On the other hand, in some other class of learning problems such as regression estimation, since the amount of error in the prediction is an important consideration and it can be measured quantitatively, the loss functions like \textit{$L_1$ loss} and \textit{$L_2$ loss} are commonly employed.
+\begin{align*}
+L_1(\pmb{x}, y) = |y-f(\pmb{x}, \alpha)| \qquad L_2(\pmb{x}, y) = (y-f(\pmb{x}, \alpha))^2
+\end{align*}
+More sophisticated loss functions are also available namely Hinge Loss, $\epsilon$-insensitive loss, Huber's loss function, etc. \citep[pp. 74-75]{gao_probabilistic_2002}, \citep[pp. 6-7]{rosasco_are_2004}
+
+\subsection{Function Space}
+
+Another nice feature of the risk minimization framework is the use of the notion of function space. The function space $\mathcal{F}$ to which $f$ belongs along with the parametrization variable $\alpha$ is defined according to the characteristics of the learning problem to be dealt with. For example, in the case of a classification problem with three possible classes and two boolean features, $\mathcal{F}$ would be the set of all the functions with the range set of possible classes and the domain of all the possible configurations of the boolean features and an $\alpha$ variable can be defined to \textit{scan} the function space. On the other hand, in \textit{Regression Estimation} problems, the range is the set of real numbers and the domain is the set of real-valued n-tuples where $n$ is the number of input dimensions.
+\begin{ex}
+\begin{align*}
+&Range=\{red,green,blue\} & \\
+&Domain=\{(false,false),(false,true),(true,false),(true,true)\}&
+\end{align*}
+For the range and domain sets defined above, the function space $\mathcal{F}$, for the corresponding learning scenario, is the one that exhaustively includes all the possible mappings from the domain set to range set.
+
+$$\mathcal{F}=\{f_{\alpha} : \forall f_{\alpha} : Domain \mapsto Range\} $$
+
+One can parametrize the set $\mathcal{F}$ by a parameter variable $\alpha$. This variable does not have to be single-valued or numerical, it is just a notational device. For the domain and range sets specified above, a simple way to parametrize the function space $\mathcal{F}$, is using n-tuples that simultaneously take on $n$ different values where $n$ denotes the cardinality of the domain set and $m$ denotes that of the range set. 
+For instance, $\alpha = (r,r,g,b)$ defines the mapping $f_{(r,r,g,b)}$ that maps the $(false, false)$ to the $red$, the $(false,true)$ to $red$, the $(true, false)$ to $green$ and $(true,true)$ to $blue$.
+
+\end{ex}
+
+The function space $\mathcal{F}$ depends solely on the range and domain sets. In the toy example given above, these sets were countable but in general they don't have to be so. For example in the case both domain and range are real-numbers, one can still imagine a function space which consists of all the real-valued functions. Obviously, then the parameterizing the functions space by indexing as it is done above for the discrete case would not be possible due to the unaccountability of the set that defines the function space. However, this does not mean one cannot find a parametrization variable $\alpha$ that allows to parametrize at least a subset of the function space.
+
+\begin{ex} 
+\begin{align*}
+&Range=\mathbb{R} \quad Domain=\{\pmb{x}=[x_1,x_2,x_3]^\top :\forall \pmb{x} \in \mathbb{R}^3\}&
+\end{align*}
+Consider above range and domain sets. Here, the cardinality of the function space $\mathcal{F}$ that contains all the possible mappings from the domain set to the range is uncountable. By contrast to the previous example, there is not a way to easily come up with a parametrization trick that enables us to index all the functions in $\mathcal{F}$.
+\end{ex}
+
+Uncountability of the functions in the functions space is very common (e.g all the regression problems) and it poses a challenge when searching for the function that minimizes the risk. However, if the function that generates the data is assumed to belong to a certain family of functions, things are easier. 
+
+\begin{ex} 
+\label{ex:regression_formulated}
+\begin{align*}
+&\pmb{x} = [x_1, x_2]^\top, \quad y = r(\pmb{x}) + \epsilon, \quad y = N(r(\pmb{x}),\sigma_y^2), \quad \epsilon  = N(0,\sigma_y^2) & \\
+&r = f(\pmb{x},\alpha_{r})
+\end{align*}
+Imagine a learning scenario with two real-numbered inputs and one real number target. This learning problem is an example of \textit{multiple regression}. Let $r$ denote the function used for generating the data. Moreover, the data generation process was not noise-free and there is Gaussian distributed noise in the produced data with zero mean and $\sigma_y$ standard deviation. In fact, $r$ is a function that belongs to the function space in consideration under the risk minimization framework (In this case it is the Hilbert space). And the function $r$ can be indexed by the parameter variable $\alpha$. If we assume that $r$ is a linear function, then we can write $y=N(\pmb{w}^{\top} \pmb{x}, \sigma_y)$ where $w = [a,b]^\top$ and since different choices of $a$ and $b$ values allows us to pick any linear function possible, we can use this pair of variables as $\alpha$. Thus, we have $\alpha=\{a,b\}$. However, now the problem is by varying $\alpha$ we do not scan all the functions in the function space defined according to the input and output specified for the multiple regression problem. But do we really need that?
+\end{ex} 
+
+When optimizing the risk, the integration of risk functional will yield large numbers for the function $f$ if the domain-range pairs mapped by $f$ have low probability of occurring by the the distribution of the targets given inputs of the data generation process $y = N(r(\pmb{x}),\sigma{_y})$ and the rest of the possible matchings between the domain and range elements that are not mapped by $f$ have a high probability. On the other hand, the functions that generates domain-range mappings that conform to the data distribution will yield less risk. Therefore, considering only the portion of the function space that are \textit{assumed} to entail less risk than any other portion of it will not change the result of the optimization over $\alpha$. In other words, As the risk is a function of $\alpha$ and the optimization task is to determine the $\alpha$ that makes the risk smallest, one can come up with some parameterization of the function space that spans only the functions that produce the mappings which conform to the assumed nature of data generation (which is linear in above example). 
+
+The idea of parameterizing a family of functions and optimizing the risk functional by picking a function from the assumed family is attractive as it makes it possible to parameterize an uncountable domain making the risk minimization possible. This is the motivation behind the \textit{parametric} learning models that are commonly used in machine learning applications. However, there is a catch with assuming a data distribution. What if the assumption was wrong and the data was generated through a function that is not being considered in the risk minimization? For example, if the data was generated through a quadratic function and only the linear functions are considered in the optimization over $\alpha$ then $r = f(\pmb{x},\alpha)$ will not hold for any $\alpha$. Briefly, an erroneous (under)assumption about the data results in missing the risk-minimizing function during the risk optimization. This is called \textit{underfitting} and it is a crucial problem that parametric models suffer from. Some examples of underfitting from the experiments carried out during this thesis work is presented in the Chapter \ref{Chapter6}. 
+
+\subsection{Empirical Risk Minimization (ERM)}
+\label{subsection:ERM}
+
+So far, we have assumed that, we can actually evaluate the integral equation in the risk minimization. However, in reality, this is not possible, because we do not actually know the probability density function that appear in the integral.
+
+Vapnik, in \citep[pp. 20-21]{vapnik_nature_2000}, discusses \textit{Empirical Risk Minimization Inductive Principle}. He defines a functional called empirical risk as follows.
+\begin{flalign} 
+& R_{emp}(\alpha)=\frac{1}{l}\sum_{i=1}^{l}L({\pmb{x},y})
+\end{flalign}
+By minimizing this functional, on a finite i.i.d $(\pmb{x},y)$ sample over $\alpha$, one can approximate the optimal $\alpha$ value that could be obtained from the risk functional. This is called \textit{consistency} of a learning process \citep[pp. 35-38]{vapnik_nature_2000}. A possible interpretation of consistency is as follows: For a risk minimization method (e.g ERM), if the risk minimized converges to the same \textit{minimal} risk value calculated by the equation \ref{def_2.1} as the size of the i.i.d $(\pmb{x},y)$ sample, $l$, goes to infinity, then the learning minimization method is said to be \textit{consistent}.
+\begin{flalign} 
+& \underset{l\rightarrow \infty} \lim  R_{emp}(\alpha)=R(\alpha) \label{def_2.3}
+\end{flalign}
+The details of the proof that consistency of ERM method is available in \citep{vapnik_nature_2000}
+% * <aanilpala@gmail.com> 2015-07-09T22:26:18.050Z:
+%
+%  Mention PAC framework (if you have time left)
+%
+
+ERM is very commonly used method in machine learning and many classical methods can be derived from it simply by substituting a specific loss function into the ERM risk equation. In the case of $L_1$ loss function, one obtains the standard least-squares formula out of the empirical risk functional.
+\begin{flalign} 
+& R_{emp}(\alpha)=\frac{1}{l}\sum_{i=1}^{l}(f(\pmb{x}, \alpha) - y)^2
+\end{flalign}
+
+ERM principle has a serious problem. When the sample does not reflect the characteristics of the underlying unknown data distribution, the function corresponds to the optimal $\alpha$ value that minimizes the empirical risk is very unlikely to be the one used by the data generation. This is due to the overassumptions of the ERM method. First overassumption is that ERM regards all the data points included in the sample to weigh equally when calculating the risk which might not be the case since the distribution used in the data generating process can have different probability for different points that might appear in the sample. Secondly, and more importantly, ERM relies only on the sampled points meaning that the underlying data distribution of the data is assumed to be the same as that of the sample. This is often not the case due to the sample being not fully representative of the data. As a result, the function learned by the ERM method might perform very badly when tested on another sample from the same data distribution that the learning sample is drawn. 
+
+When the (empirically) minimized risk is close to zero and the function space parametrized by $\alpha$ includes complex functions such as high degree polynomials, the chances are high that, ERM method \textit{tailored} a high-degree function for successfully matching all the data-points occur in the sample. However, taking into the account that the data can be noisy and the sample does not often demonstrate the same distribution as the one used during the data generation, the empirical low risk calculated from a high-degree polynomial is often deceiving and the actual risk with a random sample is much higher. This situation is known as \textit{Overfitting} and it is more likely to happen when the number of possible domain-range pairs for the learning problem at hand is big and the function space under consideration contains complex functions. 
+%[Add figures to illustrate overfitting!]
+
+When is the number of possible domain-range pairs big? Consider two regression problems. One problem has  one-dimensional input space and the other one has two-dimensional input space. Assume that the sample we have for each problem \textit{covers}\footnote{By \textit{covering} what is meant is that the sample capturing the representative subset of a contiguous region of the input space and their corresponding response variables} the 90\% of the range of the its input space. Now, the cartesian product of the domain and range sets of the first problem is $\mathbb{R} X \mathbb{R}$ and for the second problem, it is $\mathbb{R}^2 X \mathbb{R}$. One might expect the ERM principle to measure the risk with the same accuracy for both problems. But, this is not true. In the first case, the sample represents 90\% of the data well while in the second case, the sample represents $(90\%)^2 = 81\% $ well. If the problem had 15 input dimensions then the sample could only account for $(90\%)^{15}
+ \approx 20\% $ of the data. Although having a good sample for a good range of possible inputs is practically not easy, with many dimensions, it does not guarantee that ERM method will not result in overfitting. This trouble with large number of dimensions is called \textit{Curse of Dimensionality}. 
+% [Add a figure to illustrate curse of dimensionality!]
+ 
+In order to overcome overfitting problem of ERM method, a structural control mechanism through \textit{regularization} is introduced \cite{phillips_technique_1962}, \cite{tikhonov_regularization_1963}, \cite{ivanov_linear_1962}. With this extension over ERM, the risk minimization framework is named as \textit{Structural Risk Minimization} \cite{vapnik_nature_2000}. The structural control refers to limiting the complexity of the learned function. In the risk minimization framework, this idea could be realized by penalizing the candidate functions proportionally to their complexity so that a complex function with small loss entails a comparable risk with a simple function with high loss. This trade-off is known as the \textit{Bias-Variance Tradeoff}. Generally speaking, bias refers to the amount that predictions differ from the targets in the training sample in general and variance is the sensitivity to the small fluctuations of the data in the training set. A high-biased function with low variance is less \textit{funky} and do not account for the noise that causes the data to jump around and making the true data distribution look like more complex than it actually is. That is why, the learned functions with high-bias and low-variance have a better generalization ability. On the other hand, a low-bias high-variance function can successfully fit all the data points that are possibly contaminated by the noise present in the training sample by being a complex function although this could mean the fitted function is just one of the infinite number of functions that crosses the points in the sample dataset and very likely to generalize badly.
+
+The aim of the structural control is not only to favour simpler functions that are known to have a better generalization ability to avoid overfitting but also to penalize extra model complexity fairly so that not the too simple functions with poor data-fit accuracy is chosen by SRM. Simply put, structural control prevents the learning method to favour complex models to just enough extend to avoid overfitting. This extend to which the complexity is penalized is controlled by the regularization constant. Since this constant is rather about the learning framework rather than the learning itself, it is considered as a \textit{hyperparameter} and it should be tuned to find the sweet point between underfitting and overfitting.
+%[A  Simple Figure illustrating the trade-off]
+
+\section{Data Stream Learning}
+\label{section:data_stream_learning}
+
+Predictive models are algorithmically built upon various assumptions regarding the meta-qualities of the learning environment. Traditionally, the assumptions regarding the learning scenario is restrictive with respect to data availability. More specifically, before building any predictive models, data collection and data preparation should be done. Once the data is ready, one can start training and testing the learning algorithms. This learning scenario is referred to as {\it batch learning} and the assumptions it is based on are listed as follows:
+
+\begin{itemize}
+\item Having access to the all training data before the learning process.
+\item Finite number of data points in the data set.
+\item Data is generated by a static process which results in a fixed conditional distribution of outputs given inputs.
+\item Training data sample is i.i.d.
+\item Testing and training phases are totally separate.
+\item During testing, the actual target values of the test inputs are not available.
+\item No strict limits on the time allocated for individual predictions.
+\item No strict limits on the space needed for storing the predictive models.
+\end{itemize}
+
+The way data is being generated is evolving, so is the way of accessing the data. As explained in \cite[p. 324]{gama_issues_2009}, nowadays, ever-increasing number of different kinds of devices such as sensors, hand-held devices, PCs, workstations, etc continuously generate, send and receive huge amounts of data. Most of the time the data being exchanged is not even persistent. It is consumed as it arrives. This gave rise to the popularity of data streams lately.
+
+With the advent of data streams, the strict assumption about the data availability in traditional learning scenario is relaxed. Furthermore, the continuous data flow demonstrated by the stream data invalidates the other assumptions made in the offline learning setting. This imposes new requirements that the learning algorithm should fulfill in order to be employed in the streaming scenarios. This new learning paradigm is called {\it data stream learning} and it assumes the following.
+
+\begin{itemize}
+\item Data arrives one by one through a data stream.
+\item Total number of data points is unbounded.
+\item Distribution of the data is subject to changes over time.
+\item Data does not have to be streamed from i.i.d sample.
+\item Testing and Training are allowed to overlap. The learning machine can learn from the previous test points.
+\item After a prediction, the target value supposed to be predicted is available (in some online learning scenarios)
+\item Data processing rate should be higher than data arrival rate in general so that {\it in-situ analysis} is possible.
+\item Space requirements of the learning algorithm used should be bounded by a constant.
+\end{itemize}
+
+These essential differences between two learning paradigms are highlighted by a load of previous research in machine learning community \cite{li_towards_2014}, \cite{gama_evaluating_2013}, \cite{domingos_catching_2001}, \cite{nguyen-tuong_incremental_2008}, \cite{vovk_algorithmic_2005} 
+
+While the fundamental conceptual considerations regarding model learning in statistical learning theory such as the tradeoff between bias and variance and the curse of dimensionality are still relevant in data stream learning, some new aspects of the learning needs to be taken into account with the changes in the basic assumptions of the learning scenario. Next, the most important stream learning-relevant consideration, \textit{stationarity}, is discussed.
+
+\subsection{Non-Stationarity of Data Distribution in Streams}
+\label{subsection:2.4.1}
+
+As stated in the list of assumptions regarding online learning scenario, the underlying data distribution is subject to changes. This happens when the process that generates the data, for any reason which is not the point of interest for the learning, changes and starts producing data with different characteristics. This phenomenon is called \textit{concept drift}.
+
+\begin{ex}
+Imagine a streaming scenario where the data items in the stream consists of two numbers namely the average number of transistor count in the microchips and the year of build of the microchips\begin{align*}
+& (x,y)_n = {(\text{avg \# of transistors, year of built})_n}
+\end{align*}
+This hypothetical data stream started streaming in 1960 and it streams a new data point every year on the first day of January. The underlying distribution of the stream data for the first 30 years did not change (\cite{moore_cramming_1965}, \cite{schaller_moores_1997}). However, for the last two decades, the correlation between year of built and the average number of transistors in microchips seems to have changed significantly (\cite{tuomi_lives_2002}). This \textit{non-stationarity} in the streamed data is a good example of concept drift.
+\end{ex}
+
+Conceptual drifts are common in learning scenarios which consumes a live data stream. This is why techniques to deal with them are proposed in the literature mostly under the name of \textit{Online Learning}. However some learning problems that do not feature any concept drifts but have a stream data source are often mistakenly assumed to have concept drifts and the techniques to deal with non-stationarity in data are falsely being applied to these. Therefore, before discussing the ways to handle concept-drift, the distinction between two types of stream learning problems need to be made clear. Next, in order to highlight the difference between the two, learning with a stationary stream scenario will be contrasted with the non-stationary one.
+
+\subsection{Stationary Stream Learning}
+
+This kind of stream learning is structurally same as its non-stationary variant. However, in stationary scenarios, the very crucial difference is that one can assume the underlying data distribution of the stream is fixed. This has deep implications on the way learning should be done. Most obviously, if the data distribution is static, then once the learning algorithm has built a good predictive model, the future data points in the stream is guaranteed to be predicted accurately. This implies, learning does not have to be continuous and one can adapt batch learning algorithms to stream learning scenario. However, the catch is that in some scenarios data distribution can be a function of time that demonstrates repeating patterns. An example of this is weather. Weather data is in fact is stationary (or drifting in a negligible amount \footnote{http://climate.nasa.gov/} due to global warming) although one might think the data distribution changes from one season to another. This is partly true. However, if we look at the big picture, what we see is that as the seasons repeat, so-called changing data distributions also repeat. Therefore, it is more accurate to say data distribution has different local trends and the history contains all the patterns, hence new patterns are not expected to emerge (at least for a long time). Learning problems with this kind of time-dependent local repeating patterns are categorized under the name of \textit{time-series prediction}. The online learning algorithms that incorporates the new data from the stream to capture emerging trends are not well-suited for the time-series prediction problems as when dealing with time-series prediction problems, once the relation between the time and the local data patterns are resolved, application-wise it is no different than batch learning with the exception of predictions still has to be made one the one-by-one basis which is a constraint imposed on by the data stream environment.
+
+\subsection{Online Prediction Protocol}
+In order to provide a common way to specify and formulate online learning problems with the emphasis put on the sequentially arriving data and incremental training, \textit{Online Prediction Protocol} is proposed \cite[p. 5]{vovk_-line_2009}. The protocol introduced in the original paper is only for the regression problems and it involves an extra line which is rather about the prediction interval estimation strategy which is irrelevant to our general purpose of defining a protocol for online algorithms. Therefore, a minimally modified version of the online prediction protocol is as follows.
+
+Let $Domain$ be the set of all the possible input values. For the regression with $n$ input variables, $Domain = \mathbb{R}^n$. Let $Range$ be the set of all the possible response (target) values. For the regression problems, $Range = \mathbb{R}$. Data points in the stream are represented as $(\pmb{x}, y)_n=\{\pmb{x}_n,y_n\}$ where $n$ is the position of the tuple in the data stream. Data points with smaller $n$ value arrives earlier. $\hat{y}_n$ and $y$ are respectively the predicted target and target for the $n_{th}$ data point. $UpdateModel$ is a procedure that \textit{incrementally} incorporates new data into the internal learning model which is abstracted away in the online prediction protocol.
+
+As for $err_n$, it is the array of errors computed by the loss function $L$ on given $\hat{y}_n$ and $y$. Capturing the errors this way is not strictly related with the online learning itself. It is included in the loop just to capture the real-time accuracy statistics of the online learning process that is needed for further analysis of the performance of the learner. The loss function $L^*$ should not be confused with the loss function used internally by the learning algorithm to build its internal predictive model to come up with the predictions (e.g least-squares, etc.) as they can be different from each other. In order to avoid confusion, the loss function that is used in the wrapper over the learning algorithm is denoted as $L^*$ while the internal loss function is denoted as $L$. Since for the regression problems most interpretable accuracy metric is the absolute deviation of the prediction from the target value, mostly absolute loss function is used for collecting accuracy statistics. However for a classification problem this is usually 0-1 loss function that returns zero provided that the prediction is correct and returns zero otherwise. This way of error calculation is named as predictive sequential approach and it is discussed thoroughly in Chapter \ref{Chapter6}. 
+
+The pseudocode for online prediction protocol is as follows:
+
+\begin{algorithm}
+  \caption{Online Prediction Protocol}\label{alg:opp}
+  \begin{algorithmic}[1]
+    \Procedure{Predict}{}%\Comment{The g.c.d. of a and b}
+    	\While{true}\Comment{Infinite Loop}
+    		\State \texttt{Observe the data point $\pmb{x}_n \in Domain$}
+        	\State \texttt{Output the prediction $\hat{y_n} \in Range$}
+        	\State \texttt{Observe the response $y_n \in Range$}
+        	\State \texttt{UpdateModel($\pmb{x}_n$, $\hat{y_n}$, $y_n$)}
+        	\State $err_n \gets L^*(y, \hat{y_n})$
+    	\EndWhile
+		\State \textbf{return}
+    \EndProcedure
+  \end{algorithmic}
+\end{algorithm}
+
+\subsection{Data Horizon and Data Obsolescence}
+
+The online protocol can also be described briefly as \textit{interleaving learning and testing}. The model update call in the loop of online prediction protocol after observing the response value is important when dealing with non-stationary data. New data always need to be utilized. In other words, for online learning algorithms there is no ending to learning, they learn as long as the data stream flows. Often it is pretty challenging task to design learning algorithms that are able update their internal predictive model with the new data without having to build the model from scratch. The term in online learning used to indicate how immediately new data points should be incorporated into the model is \textit{data horizon}. If the predictive model is strictly required to be updated with the observation of the response for the each data point arriving, then the data horizion is very close. On the other hand, if, after predicting a newly arriving data point, there is some time needed to obtain the response or incorporate the new data point with its observed response into the predictive model via $UpdateModel$ call and meanwhile the existing model does not quickly become obsolete, then data horizon is relatively far. 
+
+Another consideration with online learning is \textit{data obsolescence}. When the old stream items which are once used for updating the predictive model is not of any value to the prediction then they should be omitted from the predictive model. The time that takes for a data to become obsolete and its effect on the prediction mechanism should be removed is called data obsolescence time. Removing the effects of the obsolete data points is not easy from an implementation point of view. Especially for the learning algorithms that \textit{absorbs} the data, this become harder as the prediction is not computed by some aggregation of the contributions of separate data points. However, some linear algebraic and computational tricks to this are available and these are discussed in Chapter \ref{Chapter5}.

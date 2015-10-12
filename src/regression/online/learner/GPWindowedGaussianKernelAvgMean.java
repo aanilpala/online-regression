@@ -67,8 +67,8 @@ public class GPWindowedGaussianKernelAvgMean extends GPWindowedBase {
 	public boolean update(double[][] org_dp, double org_y, Prediction prediction) throws Exception {
 		
 		if(slide && !high_error_flag) {
-			update_count++;
 			update_running_se(org_y, prediction.point_prediction);
+			update_count++;
 			return false;
 		}
 		

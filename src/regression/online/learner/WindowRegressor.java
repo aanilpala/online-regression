@@ -10,9 +10,11 @@ public abstract class WindowRegressor extends OnlineRegressor {
 	double[][][] dp_window;
 	double[][] responses;
 	double[] residual_window;
-	private double running_se;
+	protected double running_se;
 	boolean high_error_flag;
 	int tuning_countdown;
+	
+	public int he_state = 0;
 	
 	double m_new, m_old = 0, s_new = 0, s_old = 0; // needed for target variance computation
 	
@@ -155,29 +157,44 @@ public abstract class WindowRegressor extends OnlineRegressor {
 	
 	public void update_running_se(double target, double pp) {
 		
+		count_dps_in_window();
+		
 		if(tuning_countdown == -1) tuning_countdown = w_size;
 		
 		double old_running_se = running_se;
 		double residual = Math.abs(target - pp);
+		double dropped;
 		
-		running_se = (running_se*0.95 + 0.05*residual*residual);
-		
-		if(!high_error_flag && slide) {
-			double delta_error = (residual*residual)/old_running_se;
-			if(delta_error > 15) {
-				high_error_flag = true;
-				high_error_start_point = update_count;
-				running_se = 0;
-			}
+		if(!slide) {
+			residual_window[w_end] = residual;
+			running_se += residual;
+		}
+		else {
+			dropped = residual_window[w_end];
+			residual_window[w_end] = residual;
+			running_se += (residual - dropped);
 		}
 		
+//		if(update_count > 995 && update_count < 1025)
+//			System.out.println((update_count + " - " + tuning_countdown +  " - " + residual + " - " + old_running_se + " - " + (residual*residual)/old_running_se));
 		
 		
-		
-		
+		if(!high_error_flag && slide && old_running_se != 0) {
+			double delta_error = (residual)/(old_running_se/w_size);
+			
+			if(delta_error > 2.5) {
+//				System.out.println(update_count);
+				high_error_flag = true;
+				high_error_start_point = update_count;
+//				running_se = 0;
+//				he_state = 0;
+			}
+			
+			
+		}
 	}
 	
-	public void update_running(double target, double pp) {
+	public void update_running_se_old(double target, double pp) {
 		
 		count_dps_in_window();
 		

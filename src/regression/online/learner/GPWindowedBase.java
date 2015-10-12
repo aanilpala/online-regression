@@ -102,7 +102,7 @@ public abstract class GPWindowedBase extends WindowRegressor{
 		
 		// optimizer parameters
 		int iteration_counter = 0;
-		int max_it = 35;
+		int max_it = 10;
 		double decayer = 0.1;
 		int decay_counter;
 		int max_decay_count = 10;

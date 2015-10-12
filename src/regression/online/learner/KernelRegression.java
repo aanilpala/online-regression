@@ -72,8 +72,8 @@ public class KernelRegression extends WindowRegressor {
 	public boolean update(double[][] org_dp, double org_y, Prediction prediction) throws Exception {
 		
 		if(slide && !high_error_flag) {
-			update_count++;
 			update_running_se(org_y, prediction.point_prediction);
+			update_count++;
 			return false;
 		}
 		
@@ -267,92 +267,45 @@ public class KernelRegression extends WindowRegressor {
 		return kernel_measure;
 	}
 	
-//	@Override
-//	public void update_running_se(double target, double pp) {
-//		
-////		count_dps_in_window();
-//		
-//		if(tuning_countdown == -1) tuning_countdown = w_size;
-//		
-//		double old_running_se = running_se;
-//		double dropped = 0.0;
-//		
-//		double residual = Math.abs(target - pp);
-//		
-//		if(n == 1) {
-//			m_old = m_new = target;
-//			s_old = 0;
-//		}
-//		else {
-//			m_new = m_old + (target - m_old)/((float) n);
-//			s_new = s_old + (target - m_old)*(target - m_new);
-//				
-//			//for the next iteration
-//			m_old = m_new;
-//			s_old = s_new;
-//		}
-//		
-//		double target_variance = 1;
-//		if(n > 1)
-//			target_variance = s_new/(float) (n - 1);
-//	
-//		
-//		if(!slide) {
-//			residual_window[w_end] = residual;
-//			running_se += residual*residual;
-//		}
-//		else {
-//			dropped = residual_window[w_end];
-//			residual_window[w_end] = residual;
-//			running_se += (residual*residual - dropped*dropped);
-//		}
-//		
-//		if(running_se < 0) running_se = 0.0;
-//		
-//		if(!high_error_flag && slide && (n*residual*residual) > 1) {
-//			double delta_smse = Math.abs(((residual*residual)/(target_variance)) - old_running_se/(n*target_variance));
-//			if(delta_smse > 0.2) {
-//				high_error_flag = true;
-//				high_error_start_point = update_count;
+	@Override
+	public void update_running_se(double target, double pp) {
+		
+		count_dps_in_window();
+		
+		if(tuning_countdown == -1) tuning_countdown = w_size;
+		
+		double old_running_se = running_se;
+		double residual = Math.abs(target - pp);
+		double dropped;
+		
+		if(!slide) {
+			residual_window[w_end] = residual;
+			running_se += residual;
+		}
+		else {
+			dropped = residual_window[w_end];
+			residual_window[w_end] = residual;
+			running_se += (residual - dropped);
+		}
+		
+//		if(update_count > 995 && update_count < 1025)
+//			System.out.println((update_count + " - " + tuning_countdown +  " - " + residual + " - " + old_running_se + " - " + (residual*residual)/old_running_se));
+		
+		
+		if(!high_error_flag && slide && old_running_se != 0) {
+			double delta_error = (residual)/(old_running_se/w_size);
+			
+			if(delta_error > 5) {
+//				System.out.println(update_count);
+				high_error_flag = true;
+				high_error_start_point = update_count;
 //				running_se = 0;
-//			}
-//		}
-//	}
-
-	
-//	@Override
-//	public void update_running_se(double residual) {
-//		
-//		if(tuning_countdown == -1) tuning_countdown = w_size;
-//		
-//		double old_running_se = running_se;
-//		double dropped = 0.0;
-//		
-//		if(!slide) {
-//			residual_window[w_end] = residual;
-//			running_se += residual*residual;
-//		}
-//		else {
-//			dropped = residual_window[w_end];
-//			residual_window[w_end] = residual;
-//			running_se += (residual*residual - dropped*dropped);
-//		}
-		
-//		if(update_count > 995 && update_count < 1005) {
-//			System.out.println((n*residual*residual)/old_running_se);
-//		}
-		
-		
-//		double error_increase_ratio = (n*residual*residual)/
-		
-//		System.out.println(old_running_se + "-" + residual*residual + "-" + dropped*dropped);
-//		if(running_se < 0) running_se = 0.0;
-		
-//		if(slide && n*residual*residual > 1 && 5*old_running_se < n*residual*residual) {
-//			high_error_flag = true;
-//			System.out.println(old_running_se + " - " + n*residual*residual);
-//		}
-//	}
+//				he_state = 0;
+			}
+			
+			
+		}
+	}
 	
 
 }

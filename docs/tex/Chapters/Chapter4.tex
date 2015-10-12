@@ -1,0 +1,389 @@
+% Chapter 4
+
+\chapter{Approach} % Main chapter title
+
+\label{Chapter4} % For referencing the chapter elsewhere, use \ref{Chapter1} 
+
+\lhead{Chapter 4. \emph{Approach}} % This is for the header on each page - perhaps a shortened title
+
+The kind of learning problem to be tackled in order to make the desired inferences about operator runtime behavior as discussed in the previous chapter is \textit{regression estimation} among other kinds recognized in Statistical Learning Theory such as density estimation and pattern recognition problems. In this chapter, first, the particular regression estimation problem to be tackled is mathematically modeled. Then, given the formulation of the problem, the regression algorithms with different learning objectives (e.g minimizing the empirical risk, minimizing the expected risk, calculating the most \textit{probable} prediction given the features, etc) or with different techniques to achieve the same objective (e.g finding the optimal parameters that makes the most probable prediction, finding the optimally weighted average of the observed responses that is supposed to be the most probable prediction) are explored. Furthermore, the derivations of the formulas that these algorithms are based on for making predictions and estimating prediction bounds are presented.
+
+\section{Modeling the problem}
+
+In Regression Estimation, the main goal is to approximate the data generation function that is used to generate the data from a sample of data provided. It is also called as \textit{Function Approximation Problem}. This problem is already formulated under the empirical minimization framework in \ref{ex:regression_formulated}. A simpler version of it is given in the following to concentrate solely on the definition of the problem rather than the approach taken to solve it. Later in this chapter, more approach-oriented view of the problem is presented when the algorithms proposed for solving it is discussed.
+\begin{flalign}
+& \text{Data : } (X,\pmb{y}) = \{(\pmb{x}_i,y_i),\ \forall i < n,\ i \in \mathbb{N}_{>0}, \ \pmb{x}_i \in \mathbb{R}^d,\ y_i \in \mathbb{R}\}, \label{def_4.1} \\
+& \quad y_{n} = f(\pmb{x}_n) + \epsilon _n \label{def_4.2} \\
+& \text{Find } y_{n+1} | \text{(X,\pmb{y})} \label{def_4.3}
+\end{flalign}
+Above $n$ denotes the number of training examples (case base) and $d$ denotes the dimensionality of the input space. Moreover, $X$ is a $d$-by-$n$ matrix that is formulated as $X=[\pmb{x}_1,\pmb{x}_2,...\pmb{x}_n]$ and referred to as \textit{design matrix}. \ref{def_4.3} defines the regression estimation problem in a general way and it does not preclude the use of any regression algorithm. It is also worth noting that the learning problem defined does not impose any kind of restrictions on the \textit{logistics} of the learning scenario (e.g batch learning, online learning). In \ref{def_4.1}, $\epsilon _n$ denotes the \textit{additive} noise associated with the $n_{th}$ target observation. In order to properly define the learning problem, this additive noise should be modeled. As mentioned in \ref{list:restimator_requirements}, the measurement noise that corresponds to the additive noise in the above formulation is supposed to be homoscedastic. In other words, the additive noise is not a function of input variable $\pmb{x}$ and it is independently identically distributed. In this case, using the most common noise modeling option, the vector of additive noise quantities, $\pmb{\epsilon}$ is assumed to have a multivariate Gaussian distribution with $0$ mean and the covariance function $\sigma_y^2 I$. 
+\begin{flalign}
+\epsilon = N(0,\sigma_y^2 I) \label{def_4.4}
+\end{flalign}
+Having formulated the learning problem, in the following sections, existing methods to solve it are discussed.
+
+\section{Parametric Models}
+
+A common approach to solving regression estimation problem is to employ parametric predictive models. Most commonly, \textit{linear regression} is used as a parametric regression method. Given a loss function $L$, linear regression finds the coefficients, $\pmb{w} \in \mathbb{R}^d$ and assumes the following for the regression function.
+\begin{flalign}
+& f(\pmb{x})=\pmb{w}^{\top}\pmb{x} \label{def_4.5} \\
+& Y_i = N(\pmb{w}^{\top}\pmb{x_i},\sigma_y^2) \ \text{by \ref{def_4.2} and \ref{def_4.4} \label{def_4.6} }
+\end{flalign}
+Above, $Y_i$'s are independent random variables inheriting the i.i.d noise assumption. The normality assumption on the noise (also called Gaussian distributed noise) allows to model independent target values ($Y_i$) as a Gaussian distribution as well. This is why, linear regression with Gaussian noise assumptions is also called \textit{Gaussian Linear Regression}
+
+\subsubsection{Non-Linear feature space mapping}
+\label{subsubsection:nlmap2fs}
+
+Note that, linear regression is linear in terms of $\pmb{w}$. One can still assume a non-linear regression function by mapping the input space to a higher dimensional feature space. In this case, instead of $\pmb{w}^{\top}\pmb{x}$, in \ref{def_4.5} and \ref{def_4.6}, $\pmb{w}^{\top}\phi(\pmb{x})$ where $\pmb{w} \in \mathbb{R}^m$ and $m$ is the number of basis functions defined by $\Phi(\pmb{x})=[\phi_1(\pmb{x}), \phi_2(\pmb{x}), ..., \phi_m(\pmb{x})]^{\top}$ would appear.
+
+How the parametric models finds $\pmb{w}$ is yet to be discussed. As the random variable targets are modeled to be Gaussian distributed, probability density function of normal distribution can be used to find parameters $\pmb{w}$ given the data and the hyperparameters. The hyperparameters are parameter estimation method-dependent. In the following two subsections, the most common two parameter estimation method namely Maximum Likelihood Estimator (\textbf{MLE}) and Maximum A Posteriori Estimator (\textbf{MAP}) are discussed.
+
+\subsection{MLE method}
+
+\subsubsection{MLE-based parameter estimation}
+
+MLE-based parameter estimation is very simple. The only hyperparameter to be set is $\sigma_y$ through which the standard deviation of the target noise around zero is expressed. Thus, we write $\theta = \{\sigma_y\}$. MLE-based parameter estimation is based on finding the parameter, \pmb{w}, configuration that maximizes the \textit{likelihood} of the responses given the design matrix and parameters. In mathematical terms, the expression to be maximized is $p(\pmb{y}|X,\pmb{w})$.
+
+Manipulating the joint probability formula and exploiting pdf of Gaussian distribution, likelihood of the data given parameters is calculated as follows.
+\begin{align*}
+p(\pmb{y}|X,\pmb{w}) & = p(y_1, y_2, ...y_n|\pmb{x}_1,\pmb{x}_2,...\pmb{x}_n,\pmb{w}) \\ &
+=\prod_{i=1}^{n} p(y_i|\pmb{x}_i,\pmb{w}) \\ &
+=\prod_{i=1}^{n}\frac{1}{\sqrt{2\pi \sigma_y^2}} exp(-\frac{1}{2 \sigma_y^2} (y_i - \pmb{w}^{\top}x_i)^2) \\ &
+=(\frac{1}{\sqrt{2\pi \sigma_y^2}})^n exp(-\frac{1}{2 \sigma_y^2} (\pmb{y} - \pmb{w}^{\top}X)^{\top}(\pmb{y} - \pmb{w}^{\top}X)) \numberthis \label{def_4.7} \\ & \propto -\frac{1}{2 \sigma_y^2} (\pmb{y} - \pmb{w}^{\top}X)^{\top}(\pmb{y} - \pmb{w}^{\top}X)
+\end{align*}
+Maximizing $(\frac{1}{\sqrt{2\pi \sigma_y^2}})^n exp(-\frac{1}{2 \sigma_y^2} (\pmb{y} - \pmb{w}^{\top}X)^{\top}(\pmb{y} - \pmb{w}^{\top}X))$ can be seen as the equivalent of minimizing\footnote{due to the minus sign in the exponent} $(\pmb{y} - \pmb{w}^{\top}X)^{\top}(\pmb{y} - \pmb{w}^{\top}X)$ as the constants can be ignored in the optimization and. In order to find the $\pmb{w}$ that minimizes the $(\pmb{y} - \pmb{w}^{\top}X)^{\top}(\pmb{y} - \pmb{w}^{\top}X)$ expression, first the critical points of it are found:
+\begin{align*}
+\mathcal{L} & = (\pmb{y} - \pmb{w}^{\top}X)^{\top}(\pmb{y} - \pmb{w}^{\top}X) \numberthis \label{def_4.8} \\
+& = \pmb{y}^{\top}\pmb{y} + 2\pmb{y}^{\top}X^{\top}\pmb{w} + \pmb{w}^{\top}XX^{\top}\pmb{w} \\
+\nabla_w \mathcal{L} & = -2X\pmb{y} + 2XX^{\top}\pmb{w}
+\end{align*}
+Above, setting $\nabla_w \mathcal{L}$ to 0 gives: 
+\begin{align*}
+-2X\pmb{y} + 2XX^{\top}\pmb{w} & = 0 \\
+(XX^{\top})^{-1}X\pmb{y}^{\top} & = \pmb{w} \numberthis \label{def_4.9}
+\end{align*}
+After finding the critical point, whether it is a maxima or minima is checked:
+\begin{align*}
+\nabla_w^2 \mathcal{L} & = \nabla_w (\nabla_w \mathcal{L}) \\
+& = \nabla_w (-2X\pmb{y} + 2XX^{\top}\pmb{w}) \\
+& = 2XX^{\top}
+\end{align*}
+$2XX^{\top}$, being the Hessian matrix, is a quadratic hence always greater than zero assuming $XX^{\top}$ is invertible. Thus, it is a positive definite matrix making the optimization problem strictly convex. Therefore, one can conclude that the critical point with a strictly positive Hessian is the global minimum of $\mathcal{L}$. This implies $\pmb{w}$ found in \ref{def_4.9} is the MLE estimate of parameters that maximizes the likelihood of the data. 
+\begin{flalign}
+\pmb{w}_{MLE} = (XX^{\top})^{-1}X\pmb{y} \label{def_4.10}
+\end{flalign}
+It is worth noting that \ref{def_4.8} can be written as $|\pmb{y} - \pmb{w}^{\top}X|^2$ which is the euclidean distance between the responses vector, $\pmb{y}$, and the predictions vector, $\pmb{w}^{\top}X$. Minimizing this distance corresponds to minimizing the empirical risk with $L_2$ chosen as the loss function as described in \ref{subsection:ERM} which is the idea behind the well-known Ordinary Least Squares (OLS) method.
+
+As mentioned in \ref{subsubsection:nlmap2fs}, it is easy to define a set of basis functions that maps inputs to a higher dimensional space when the unknown regression function $f$ in \ref{def_4.2} is assumed to be non-linear. When this idea is employed for MLE method, the parameter vector, \pmb{w}, that maximizes the likelihood of the data is the following.
+\begin{flalign}
+\pmb{w}_{MLE} = (\Phi(X)\Phi(X)^{\top})^{-1}\Phi(X)\pmb{y} \label{def_4.11}
+\end{flalign}
+
+\subsubsection{Measure of prediction uncertainty in MLE-method}
+\label{subsubsection:4.2.1.2}
+
+Finding the parameters, $\pmb{w}$ of the regression function makes it possible to make predictions for a given data point, $\pmb{x}$. Simply calculating $\pmb{w}^{\top}\pmb{x}$ gives the MLE-estimate. However, if an interval with a certain probability containing the unobserved target value is needed instead of a point estimation of the target, finding the regression function parameters alone is not enough. In this case, the asymptotic properties of the OLS method that is essentially the same as MLE method come in handy.
+
+In order to find intervals \textit{probably} covering the target variable for predictions, first the intervals for the parameter values of the regression function should be established. MLE method already computes the parameter estimations but we do not know how close they are to the actual parameters of the data generation function. However, as shown in \ref{def_2.3}, by the \textit{consistency} of the ERM of which OLS is an example, as the sample size goes to infinity, the approximated regression function converges to the regression function implying the parameters estimated for the regression function converges to the true parameters of the regression function. This, along with derivation of the asymptotic normality of the random variable $\pmb{\beta} - \pmb{w}$, is shown below:
+\begin{align*}
+\text{letting $\pmb{\beta}$ denote the true} & \text{ parameters of the regression function} \\
+\text{and } s^{2} \text{ be } = \frac{(\pmb{y} - \pmb{w}^{\top}X)^{\top}(\pmb{y} - \pmb{w}^{\top}X)}{n-d} & \text{ where d is the number of predictors}  \\
+\pmb{\beta} - \pmb{w} & = (XX^{\top})^{-1}X(\pmb{y}+\pmb{\epsilon}) - (XX^{\top})^{-1}X\pmb{y} \\
+(XX^{\top})^{-1}X\pmb{\epsilon} & = (\frac{1}{n}(XX^{\top})^{-1}(\frac{1}{n}X\pmb{\epsilon}) \\
+\text{knowing that;} \ \ \frac{1}{n}(XX^{\top}) = \frac{1}{n}\sum_1^n\pmb{x_i}\pmb{x_i}^{\top} & \rightarrow E[\pmb{x_i}\pmb{x_i}^{\top}] = \frac{XX^{\top}}{n} \numberthis \label{def_4.12} \\
+\text{and} \ \ \frac{1}{n}(X\pmb{\epsilon}) = \frac{1}{n}\sum_1^n\pmb{x_i}\pmb{\epsilon_i} & \rightarrow E[\pmb{x_i}\pmb{\epsilon_i}] = 0 \numberthis \label{def_4.13} \\
+\text{and} \ \ \frac{1}{\sqrt{n}}\sum_1^n\pmb{x_i}\pmb{\epsilon_i} & \rightarrow N(0,s^{2} \frac{XX^{\top}}{n}) \text{ by C.L.T} \numberthis \label{def_4.14} \\
+\text{Therefore; } \\
+(\pmb{\beta} - \pmb{w}) = \frac{1}{\sqrt{n}}(\frac{1}{n}(XX^{\top})^{-1}(\frac{1}{\sqrt{n}}X\pmb{\epsilon}) & \rightarrow (XX^{\top})^{-1}\sqrt{n} N(0,s^{2} \frac{XX^{\top}}{n}) \text{ by \ref{def_4.12} and \ref{def_4.14}} \\
+& = N(0,s^{2} (XX^{\top})^{-1}) \numberthis \label{def_4.15}
+\end{align*}
+For a given data point, $\pmb{x}_i^{\top}$, It is easy to manipulate above result to reach the asymptotic normality of the difference of the mean response, $\pmb{x}_i^{\top}\pmb{\beta}$, and the predicted response, $\pmb{x}_i^{\top}\pmb{w}$, as follows:
+\begin{align*}
+\pmb{x}_i^{\top}\pmb{\beta} - \pmb{x}_i^{\top}\pmb{w} & = \pmb{x}_i^{\top}(\beta-\pmb{w}) \\
+\pmb{x}_i^{\top}N(0,s^{2} (XX^{\top})^{-1}) & = N(0,s^{2}\pmb{x}_i^{\top}(XX^{\top})^{-1}\pmb{x}_i) \numberthis \label{def_4.16}
+\end{align*}
+What \ref{def_4.16} tells is that the variance of the prediction for the data point $\pmb{x}_i$ is $s^{2}\pmb{x}_i^{\top}(XX^{\top})^{-1}\pmb{x}_i$. However, the interval that can be constructed from this will not account for the measurement noise. As soon as the enough number of data points are absorbed into the predictive model that allows parameters to be inferred accurately, the interval will be of zero-length. In order address this problem, the estimation of the variance of the additive noise should be taken in to account. 
+\begin{align*}
+Var[y_i - \pmb{x}_i^{\top}\pmb{w}] & = Var[\pmb{x}_i^{\top}\pmb{\beta} - \pmb{x}_i^{\top}\pmb{w}] + Var[\epsilon_i] \\
+Var[y_i - \pmb{x}_i^{\top}\pmb{w}] & = s^{2}\pmb{x}_i^{\top}(XX^{\top})^{-1}\pmb{x}_i + s^{2} \\
+\text{Therefore;} & \\
+y_i \in [\pmb{x}_i^{\top}\pmb{w} & \pm z_{1-\frac{\alpha}{2}}\sqrt{s^{2}\pmb{x}_i^{\top}(XX^{\top})^{-1}\pmb{x}_i + s^{2}}] \numberthis \label{def_4.17}
+\end{align*}
+Above, $z$ is the z-distribution and $\alpha$ is the confidence level desired for the intervals. For instance, if the prediction intervals are supposed to cover the targets with $95\%$ of probability, then $\alpha$ is taken to be $0.05$ making the $z_{1-\frac{\alpha}{2}}$ equal to $1.96$.
+
+\subsection{MAP method}
+
+\subsubsection{MAP-based parameter estimation}
+\label{subsubsection:map-based_param_estimation}
+
+As discussed in \ref{subsection:ERM}, Empirical Risk Minimization that MLE-method is based on has a serious overfitting problem. In order to avoid this problem, use of structural risk minimization through regularization is shown in \citep[p. 55]{tikhonov_regularization_1963}, \citep[pp. 137-141]{shalev-shwartz_understanding_2014} \citep[pp. 583-884]{kacprzyk_springer_2015} and \citep[pp. 94-96]{vapnik_nature_2000}. MAP-based parameter estimation features structural control aiming to decrease high-variance that MLE method exhibit in an attempt to avoid overfitting.
+
+MAP-based parameter estimation is pretty similar to MLE method. However, differently from the MLE method, it assumes a parameter distribution in addition to the assumption of the Gaussian distributed noise that is already made in the derivation of MLE-based estimator. Since this assumption reflects the \textit{prior} knowledge about the parameter vector \pmb{w}, the probability density function of the prior distribution assumed is referred to as \textit{prior}. Most commonly, multivariate Gaussian distribution is assumed for the distribution for parameters, $\pmb{w}$. Therefore, the prior is modeled as Gaussian distribution with $0$ mean and $d$-by-$d$ covariance matrix, $\Sigma_w$. Note that, in the case where the independence of input dimensions can be assumed, the covariance matrix for parameters, $\pmb{w}$, is a diagonal matrix. In this case, instead of defining  $\Sigma_w$, a set of variance values for the parameters, $\{\sigma_{w_1}, \sigma_{w_2}, ... \sigma_{w_n}\}$, can be defined. As a result, the hyperparameters set for MAP method can be written as $\theta=\{\sigma_y, \sigma_{w_1}, \sigma_{w_2}, ... \sigma_{w_n}\}$. If there is already some stored data available (e.g training set, case base), the variance-covariance matrix calculated from the data can be set as the covariance matrix of the assumed multivariate Gaussian distribution for the prior. This eliminates the hassle of hyperparameter tuning.
+
+Having already formulated the prior for MLE and having likelihood modeled by multivariate Gaussian distribution, Bayes' Rule defined as follows
+\begin{align*}
+\texttt{posterior} & = \frac{\texttt{likelihood} \ \times \ \texttt{prior}}{\texttt{marginal likelihood}} = \frac{p(\pmb{y}|X,\pmb{w}) p(\pmb{w})}{p(\pmb{y}|X)} \\
+\text{where } p(\pmb{y}|X,\pmb{w}) & = (\frac{1}{\sqrt{2\pi \sigma_y^2}})^n exp(-\frac{1}{2 \sigma_y^2} (\pmb{y} - \pmb{w}^{\top}X)^{\top}(\pmb{y} - \pmb{w}^{\top}X)) \ \text{by \ref{def_4.7}} \\
+\text{and } p(\pmb{w}) & = (\frac{1}{\sqrt{2\pi}})^d| \Sigma_w |^{-\frac{1}{2}} exp(-\frac{1}{2} \pmb{w}^{\top}\Sigma_w^{-1}\pmb{w}) \\
+\text{and } p(\pmb{y}|X) & = \int p(\pmb{y}|X,\pmb{w} p(\pmb{w}) d\pmb{w}
+\end{align*}
+is exploited to find the posterior probability that MAP method is based on in the following.
+\begin{align*}
+& \text{writing only in terms of $\pmb{w}$-dependent terms:} \\
+p(\pmb{y}|X,\pmb{w}) & \varpropto -\frac{1}{2 \sigma_y^2} (\pmb{y} - \pmb{w}^{\top}X)^{\top}(\pmb{y} - \pmb{w}^{\top}X) \\
+p(\pmb{w})  & \varpropto -\frac{1}{2} \pmb{w}^{\top}\Sigma_w^{-1}\pmb{w} \\
+p(\pmb{w}|X,\pmb{y}) & \varpropto -\frac{1}{2 \sigma_y^2} (\pmb{y} - \pmb{w}^{\top}X)^{\top}(\pmb{y} - \pmb{w}^{\top}X)-\frac{1}{2} \pmb{w}^{\top}\Sigma_w^{-1}\pmb{w} \\
+& \varpropto -\frac{1}{2}(\frac{1}{\sigma_y^2}(\pmb{y}^{\top}\pmb{y}-2\pmb{w}^{\top}X\pmb{y}+\pmb{w}^{\top}XX^{\top}\pmb{w})+\pmb{w}^{\top}\Sigma^{-1}\pmb{w}) \\
+& \varpropto -\frac{1}{2}(\frac{1}{\sigma_y^2}\pmb{y}^{\top}\pmb{y}-2\frac{1}{\sigma_y^2}\pmb{w}^{\top}X\pmb{y}+\pmb{w}^{\top}(\frac{1}{\sigma_y^2}XX^{\top}+\Sigma_w^{-1})\pmb{w}) \numberthis \label{def_4.18} \\
+& \text{trying to bring the above expression into the below form:} \\
+& -\frac{1}{2}(\pmb{w}-\mu)^{\top}\wedge(\pmb{w}-\mu) \text{ (assuming posterior is Gaussian)} \\
+& = \pmb{w}^{\top}\wedge\pmb{w}-2\pmb{w}^{\top}\wedge\mu + \text{constant not depending on $\pmb{w}$} \\
+\text{letting } \wedge & = \frac{1}{\sigma_y^2}XX^{\top}+\Sigma_w^{-1} \text{ and } \mu = \frac{1}{\sigma_y^2}\wedge^{-1}X\pmb{y} \text{ gives } \wedge\mu = \frac{1}{\sigma_y^2}X\pmb{y} \\
+& \text{substituting $\wedge\mu$ and $\wedge$ into \ref{def_4.18}, we get: } \\
+p(\pmb{w}|X,\pmb{y}) & \varpropto -\frac{1}{2}(\pmb{w}-\mu)^{\top}\wedge(\pmb{w}-\mu) \text{ meaning: } \\
+p(\pmb{w}|X,\pmb{y}) & \sim N(\mu, \wedge^{-1})
+\end{align*}
+As the posterior is found to be a Gaussian with mean $\mu$ and covariance matrix $\wedge^{-1}$ (or alternatively precision matrix $\wedge$), it is simple to find the parameters, $\pmb{w}$, that makes the posterior probability $p(\pmb{w}|X,\pmb{y})$ maximum. Since the mean of median of a Gaussian distribution is its maxima, the mean, $\mu$, is simply the MAP estimate.
+\begin{align*}
+\pmb{w}_{MAP} & = \frac{1}{\sigma_y^2}(\frac{1}{\sigma_y^2}XX^{\top}+\Sigma_w^{-1})^{-1}X\pmb{y} \\
+& = (XX^{\top}+\sigma_y^2 \Sigma_w^{-1})^{-1}X\pmb{y} \numberthis \label{def_4.19}
+\end{align*}
+When \ref{def_4.19} is compared to \ref{def_4.10}, it is observed that, MAP-estimate differs from MLE-estimate only by the additive term $\sigma_y^2 \Sigma_w^{-1}$ in its first factor. This additive term is known as the \textit{regularization} term. As mentioned in the beginning of the discussion of MAP method, regularization helps avoid overfitting by introducing additional bias in the predictions in return of reducing variance of the predictions through structural control discussed in \ref{subsection:ERM}.
+
+Similarly to \ref{def_4.11}, when the non-linear feature-space mapping through a number of basis functions is employed, the MAP-estimate formula changes as follows.
+\begin{flalign}
+\pmb{w}_{MAP} = (\Phi(X)\Phi(X)^{\top}+\sigma_y^2 \Sigma_w^{-1})^{-1}\Phi(X)\pmb{y}
+\end{flalign}
+
+\subsubsection{Measure of prediction uncertainty in MAP method}
+\label{subsubsection:map_pred_bounds}
+
+Although MAP method is pretty similar to MLE, due to the modifications on the parameter estimation mechanism (e.g regularization term), nice asymptotic properties of MLE parameter estimation that make it possible to establish prediction intervals around predictions with a specified probability is lost. 
+
+In the literature, bootstrap-based methods for establishing \textit{approximate} asymptotic prediction bounds for regularized least-squares regression variants such as Ridge Regression (MAP method) is proposed (\cite{crivelli_confidence_1995}, \cite{firinguetti_asymptotic_2011}, \cite{jang_two_2006}). However, these approximation methods are based on bootstrapping and require processing the stored data points more than once which makes them unsuitable for the stream learning scenario. In Chapter \ref{Chapter5}, two different prediction interval mechanisms, based on practical ideas lacking theoretical support, for MAP-based learners is presented. Moreover, in \ref{Chapter6} where the experiment results are analyzed, how one of these performed surprisingly well is shown.
+
+\section{Non-Parametric Models}
+
+The aim of the learning with parametric models is to discover the regression function by accurately estimating the parameters whose products with either the input variables or their mapped versions by a set of basis functions are supposed to sum up to target values. Once the parameters are successfully estimated, it is assumed that the function that produces the targets from the data points are known and for a given data point the target it would produce can be predicted by reproducing the data generation scenario. The key point in this approach is assuming the data generation function to belong to some family of functions such as linear, polynomial, etc). In order to accurately model a data generation function as the sum of products of some parameters and the data points (or their mapped versions), the data generation function must be indeed one of the functions that can be expressed by the sum of products of some certain set of parameters (parameters to be estimated) by the inputs. This idea is susceptible to underfitting when the assumption is not true. On the other hand, non-parametric models does not make any assumptions on the data generation function. Instead, these methods, also known as data-driven methods, manipulates the previously observed target values and their corresponding data points to predict the targets for new data points.
+
+\subsection{Gaussian Process Regression}
+\label{subsection:gpreg}
+
+For a finite subset of elements of an index-space, $S = \{t_i \ | \ \forall i \in \mathbb{R}\}$ (e.g time), the vector of Gaussian multivariate- distributed random variables $Y_{t_i}$ represent a Gaussian Process. In the regression context in streaming scenario, one can use the index space of the set of natural numbers each of which denotes the order of the data points appear in the stream. In this case, the index space is $S = \{t_1, t_2, ... t_n | \forall i \in \mathbb{N}_{> 0}\, \ \forall i \leq n \}$. As for the vector Gaussian multivariate distributed random variables mentioned, they simply correspond to the vector of targets, , $[y_{t_1}. y_{t_2}, ... y_{t_n}]^{\top}$, in the case of employing Gaussian Process as a regression tool.
+
+The most interesting fact about the Gaussian processes is that, for a given index set and and the target vector each of whose elements are indexed by the elements of the index set, one can define a mean function that maps indices to real numbers and a positive semi-definite covariance function that maps pairs of indices to real numbers, and these two would guarantee the \textit{existence} of the Gaussian Process with the prescribed indices and the targets that represents a multivariate Gaussian distribution.
+\begin{align*}
+mean : S \rightarrow \mathbb{R} \\
+cov : S \times S \rightarrow \mathbb{R}
+\end{align*}
+In the regression scenerio, instead of using index values or the cartesian product of index values as the domain sets of these mean and covariance functions respectively, the set of possible input vectors that can be indexed by the index set can be used. This way, the mean and covariance functions can be written as follows.
+\begin{align*}
+mean(t_i) & = \mu(\pmb{x}_i) \\
+cov(t_i, t_{i+k}) & = k(\pmb{x}_i, \pmb{x}_{i+k}) \numberthis \label{def_4.21}
+\end{align*}
+Above both $k$ and $cov$ are positive semi-definite functions. It is worth noting that the covariance of a pair of targets are computed by a function of an input pair. This establishes the way of relating inputs to the targets which is essential for making predictions for the data points whose targets are not (yet) known.
+
+As previously said the target vector is (multivariate) Gaussian distributed and it is described by a mean and a covariance function.
+\begin{flalign}
+\begin{bmatrix}y_{t_1}\\y_{t_2}\\...\\y_{t_n}\end{bmatrix} \sim N(
+\begin{bmatrix}\mu(\pmb{x}_1) \\ \mu(\pmb{x}_2) \\ ... \\ \mu(\pmb{x}_n)\end{bmatrix}
+\begin{bmatrix}k(\pmb{x}_1,\pmb{x}_1)&k(\pmb{x}_1,\pmb{x}_2)&...&k(\pmb{x}_1,\pmb{x}_n)\\k(\pmb{x}_2,\pmb{x}_1)&k(\pmb{x}_2,\pmb{x}_2)&...&k(\pmb{x}_2,\pmb{x}_n)\\...&...&...&...\\ k(\pmb{x}_n,\pmb{x}_1)&k(\pmb{x}_2,\pmb{x}_n)&...&k(\pmb{x}_n,\pmb{x}_n) \end{bmatrix}) \label{def_4.22}
+\end{flalign}
+The mean vector and covariance matrix above is computed by the mean and covariance functions respectively. The individual elements of the targets vector above is (single-variate) Gaussian distributed. Thus, the following can be written: 
+\begin{flalign}
+y_i \sim N(\mu(\pmb{x}_i), k(\pmb{x}_i, \pmb{x}_{i})) \label{def_4.23}
+\end{flalign}
+What \ref{def_4.22} tells is that the vector of targets (observations) is simply a \textit{single} n-dimensional point that is sampled from some multi-variate Gaussian distribution specified by a mean vector and a covariance matrix. How the individual elements of targets are related to the input data points through mean and covariance functions is also clearly seen in \ref{def_4.22}. This is conceptually  one of the key points in making predictions with Gaussian processes. The nature of this relation is \textit{shaped} by the mean and covariance functions. Thus, it can be argued that a Gaussian Process (specified by a certain mean and covariance) picks the functions that can \textit{simulate} the abovementioned sampling of single n-dimensional point from some multi-variate Gaussian distribution given inputs (data points). Here, $n$ denotes the number of data points and their corresponding targets (observations). There are infinite number of functions that can realize the mapping between some given datapoints and given targets and also infinite others that cannot. By \textit{implicitly} specifying these functions that can fit the (training) data, the unobserved target for a given data point can be predicted as the aggregation of the return values of the functions that are in consideration. By doing exactly this, Gaussian Processes provides a very powerful tool to predict the targets for the future data points. Next, the mechanics of this prediction mechanism is discussed.
+
+For a datapoint, $\pmb{x}_i$, \ref{def_4.23} seems to provide a way to predict the target. The predicted target could trivially be what mean function for $\pmb{x_i}$ returns with the upper and lower prediction bounds that could simply be the square root of the value that covariance function returns added to and subtracted from the point prediction respectively. However, this way the existing observed targets and the datapoints are not used for the prediction. The MAP method analog of this would be drawing a random set of parameters from the prior assumed for the parameters without fitting the existing training data. However, as discussed in the previous paragraph, only the functions that can map the existing data points to the observed targets should be considered. In order to do that, the conditioning property of multivariate Gaussian of joint random variables are exploited.
+\begin{align*}
+K(X,X) & = \begin{bmatrix}k(\pmb{x}_1,\pmb{x}_1)&k(\pmb{x}_1,\pmb{x}_2)&...&k(\pmb{x}_1,\pmb{x}_n)\\k(\pmb{x}_2,\pmb{x}_1)&k(\pmb{x}_2,\pmb{x}_2)&...&k(\pmb{x}_2,\pmb{x}_n)\\...&...&...&...\\ k(\pmb{x}_n,\pmb{x}_1)&k(\pmb{x}_2,\pmb{x}_n)&...&k(\pmb{x}_n,\pmb{x}_n) \end{bmatrix} \\ \numberthis \label{def_4.24}
+K(X,\pmb{x}_{n+1}) & = \begin{bmatrix}k(\pmb{x}_1,\pmb{x}_{n+1})& k(\pmb{x}_2,\pmb{x}_{n+1})&...&k(\pmb{x}_n,\pmb{x}_{n+1})\end{bmatrix}^{\top} \\
+K(\pmb{x}_{n+1},X) & = \begin{bmatrix}k(\pmb{x}_{n+1},\pmb{x}_1)& k(\pmb{x}_{n+1},\pmb{x}_2)&...&k(\pmb{x}_{n+1},\pmb{x}_n)\end{bmatrix} \\
+K(\pmb{x}_{n+1},\pmb{x}_{n+1}) & = k(\pmb{x}_{n+1},\pmb{x}_{n+1}) \\
+\end{align*}
+By using the above definitions, \ref{def_4.22} can be written in a partitioned way with an extra data point along with its unobserved target to be predicted as follows.
+\begin{align*}
+\begin{bmatrix}\pmb{y}\\y_{n+1}\end{bmatrix} \sim \ & N(\begin{bmatrix}\pmb{M} \\  \mu_{n+1}\end{bmatrix}, \begin{bmatrix} K(X,X) & K(X,\pmb{x}_{n+1}) \\ K(\pmb{x}_{n+1},X) & K(\pmb{x}_{n+1},\pmb{x}_{n+1}) \end{bmatrix}) \\
+\text{where } \pmb{y} & = \begin{bmatrix}y_1&y_2&...&y_n\end{bmatrix}^{\top} \\
+\text {and } \pmb{M} & = \begin{bmatrix}\mu_1&\mu_2&...&\mu_n\end{bmatrix}^{\top}
+\end{align*}
+Applying the conditioning property of Gaussian distributions gives the conditional predictive distribution that is a Gaussian distribution.
+\begin{align*}
+y_{n+1}|\pmb{y} \sim N & (\mu(\pmb{x}_{n+1}) + K(\pmb{x}_{n+1},X)K(X,X)^{-1}(\pmb{y}-\pmb{M}), \\ & K(\pmb{x}_{n+1},X)K(X,X)^{-1}K(X,\pmb{x}_{n+1}))) \numberthis \label{def_4.25}
+\end{align*}
+
+\ref{def_4.25} provides a way to make predictions for a given data point while using the past observed targets and their corresponding data points. It is worth noting that, the variance for the prediction is already provided. Therefore, calculating the prediction bounds are easy. Multiplying the square root of the prediction variance with the z-value that corresponds to the confidence level desired gives the symmetric double-sided pointwise prediction interval whose upper and lower limit can be used as prediction bounds. However, in order to use this nice normal distributed prediction formula, a mean function and, more crucially, a covariance function should be defined. Next, these two are discussed.
+
+Mean function can simply be chosen as the constant function that always returns $0$. What this actually means is that modeling the observed data purely by a Gaussian Process. Using a zero mean function is valid and commonly used. However, sometimes it is reasonable to try to fit the data with a parametric model and model the residuals with a Gaussian Process. This idea is advocated in \cite{blight_bayesian_1975}. With zero means or not, the prediction mechanism of Gaussian Processes remains the same. With a slight modification to \ref{def_4.25}, the conditional predictive distribution in zero-mean case can be obtained.
+\begin{align*}
+y_{n+1}|\pmb{y} \sim N & (K(\pmb{x}_{n+1},X)K(X,X)^{-1}\pmb{y}), \\ & K(\pmb{x}_{n+1},X)K(X,X)^{-1}K(X,\pmb{x}_{n+1}))) \numberthis \label{def_4.26}
+\end{align*}
+Regarding the predictions based on Gaussian processes, the choice for the covariance function is more crucial than choosing a mean function. What a covariance function essentially specifies is the \textit{smoothness} of the functions that can fit the data. If, in the data set, neighboring data points are associated with nearby target values, the functions that can fit these data are expected to be smooth ones. However, if the covariance function returns high values for close data points, the functions that are considered by the Gaussian Process to fit the data and make a prediction for new data points will be rather \textit{funky} ones. Thus, the predictions are very likely to be much higher or lower than the target that is not yet observed. On the other hand, if the covariance function returns too low values for data points that are moderately far from each other, this time the function considered by the Gaussian Process will be too smooth to capture local fluctuations (if there is any) that the data generation function features. Therefore, the parameters of the covariance function that specifies the smoothness should be chosen carefully\footnote{This is done through hyperparameter tuning. \label{hyperparam_tuning}}.
+
+As shown in \ref{def_4.21} and explained in the proceeding paragraph, a covariance function in the index space can be defined as the kernel function in the input space. Most widely used kernel function, Squared Exponential, is given below.
+\begin{align*}
+k(\pmb{x}_p,\pmb{x}_q) = \sigma_w^2exp(-\frac{1}{2}(\pmb{x}_p-\pmb{x}_p)^{\top}D^{-2}(\pmb{x}_p-\pmb{x}_p) + \sigma_y^2\delta_{pq} \numberthis \label{def_4.27}
+\end{align*}
+Above, $D$ is a diagonal matrix with diagonal entries $\pmb{l}=\{l_1,l_2,..l_d\}$ where $d$ denotes the number of dimensions in the input space. In Squared Exponential kernel, there are $2+d$ parameters namely $\sigma_w$, $\sigma_y$, and elements of $\pmb{l}$. The parameter $\sigma_w$ is called \textit{signal variance} and it can be considered to be a multiplying factor for what is computed by the term with the exponent. $\sigma_y$ is called \textit{noise variance}. It specifies the amount of additive variance in the case the kernel measurement between two identical data points is calculated. The reason why this additive noise is only added to the kernel measure of the identical points have to do with the assumed Gaussian noise in \ref{def_4.4}. Since the noise is assumed to be independently distributed, the additive noise in the targets that correspond to different data points should be \textit{uncorrelated}. Therefore, the contribution of the noise covariance to the non-diagonal entries of the covariance matrix should be zero. Hence, the covariance function which is used to compute the covariance matrix includes the dirac delta function which returns always 0 unless the data points whose covariance to be calculated is identical otherwise 1 as the coefficient of the term noise variance. As for, $\pmb{l}$, it defines \textit{lengthscales} for input data points. Lengthscales are very important because they define how \textit{close} is close enough to make the exponent with a negative sign in \ref{def_4.26} to attain a relatively high value that can make the whole expression evaluate to a high covariance value. A bad choice for this parameter results in the wrong smoothness level causing bad predictions as discussed previously. Another interesting feature about the lengthscale matrix is that, if the lengthscales are correctly chosen, no matter how far the data points are from each other in an irrelevant dimension, the kernel measurement computed for them remains unaffected by the irrelevant dimension as the high-valued lengthscale that correspond to that dimension would diminish its effect from the kernel computation. This is known as ARD (Automatic Relevance Determination) \cite{neal_bayesian_2012}. In addition to detecting the irrelevant dimensions, setting the right lengthscales also helps deal with normalizing dimensions with wide-spread or too close values.
+
+The parameters for the kernel function is actually secondary to the learning process. Moreover, they are supposed to be set prior to learning. Hence, it is reasonable to argue that they are different than the parameters which the parametric models based on. To differentiate them from the parameters used in the sense of coefficients used in parametric-learning, the kernel function parameters are called hyperparameters. The set of hyperparameters for Gaussian Process regression with Squared Exponential kernel function is $\theta=\{\sigma_w, \sigma_y, l_1, l_2, ... l_d\}$
+
+In the following section, how the hyperparameters for Gaussian Process can be tuned for regression is discussed.
+
+\subsubsection{Optimizing Hyperparameters}
+\label{subsubsection:gpreg_opt_hyperparams}
+
+As discussed in the previous section, when the hyperparameters of the kernel function are not set correctly, the predictions made with the Gaussian Process with the said kernel function might not be accurate. However, first what is meant by setting the hyperparameters \textit{correctly} should be described in mathematical terms so that the task of choosing the right hyperparameters can be considered to be an optimization problem. Fortunately, the marginal likelihood within the Bayesian inference framework provides a good measure of the \textit{desirability} of the choice of hyperparameters for given inputs and  targets.
+
+In the case of function-space view in which the Gaussian Processes are discussed in the previous section, the marginal likelihood term in level-1 Bayesian inference is defined as follows:
+\begin{align*}
+p(\pmb{y}|X) = \int p(\pmb{y}|f,X)p(f|X)df \numberthis \label{def_4.28}
+\end{align*}
+
+Varying the hyperparameters of the kernel function changes the marginal likelihood term that can be interpreted as the likelihood of the data (targets given the design matrix). For a vector of observed targets and also the stored data points, it is evident that the marginal likelihood probability should be close to unity. The hyperparameter setting that makes it evaluate to a value which is closest to 1 is the optimal. 
+
+Evaluating the integral on the right hand side of \ref{def_4.28} can be tricky. However, luckily we know that given X, $\pmb{y}$ is (multivariate) normal distributed by \ref{def_4.22}. Using the probability density function definition for the multivariate Gaussian Distribution and then taking the logarithm of it, the following is obtained.
+\begin{align*}
+p(\pmb{y}|X,\theta) & = \frac{1}{(2\pi)^{\frac{n}{2}}|K(X,X)|} exp(-\frac{1}{2}(\pmb{y}-\pmb{M})^{\top}K(X,X)(\pmb{y}-\pmb{M})) \\
+log(p(\pmb{y}|X,\theta)) & = -\frac{n}{2}log(2\pi) - \frac{1}{2}log(|K(X,X)|) - \frac{1}{2}(\pmb{y}-\pmb{M})^{\top}K(X,X)(\pmb{y}-\pmb{M}) \numberthis \label{def_4.29}
+\end{align*}
+The equation \ref{def_4.29}, called \textit{log likelihood} formula, provides an expression to be maximized over different choices of hyperparameter configurations. Moreover, each term in this expression has interpretable contributions to the overall sum. The first negative term is a constant for a fixed-size training set (or a case base). The second negative term specifies the \textit{complexity penalty}. Complex models have higher variance hence the entries of their covariance matrices are bigger resulting in a higher complexity penalty. The third negative term is for the data-fit. Better the algorithm can fit the data, closer this term gets to zero. Note that the trade-off between the complex models that can fit the data usually better and the simpler models that have less risk of overfitting is reflected in the log likelihood computation. 
+
+Fortunately, \ref{def_4.29} expression is differentiable with respect to all hyperparameters. Thus, the optimization algorithms that require the derivative of the target function can be employed. A good choice for the optimization scenario described is using the gradient-based unconstrained optimization methods such as gradient-descend (gradient-ascend in the case target function is a loss function), conjugate gradients method, RPRop (\cite{blum_optimization_2013}, \cite{rasmussen_gaussian_2004}).
+
+All the listed optimization methods are based on the derivative of the log likelihood with respect to hyperparameters. Hence, in order to employ any of these methods, the mentioned derivatives should be derived.
+\begin{align*}
+\frac{\log(\mathbf{y}|X,\mathbf{\theta})}{d\theta}=\frac{1}{2} \ \mathrm{trace}(K^{-1}\frac{dK}{d\theta})+\frac{1}{2}((\pmb{y}-\pmb{M})\frac{dK}{d\theta}K^{-1}\frac{dK}{d\theta}(\pmb{y}-\pmb{M})) \numberthis \label{def_4.30}
+\end{align*}
+Above, $K$ is a shorthand for $K(X,X)$ defined in \ref{def_4.22}. It simply denotes the covariance matrix computed by the kernel function of every pair of data points stored in the case base. In \ref{def_4.30}, it appears that the derivative of the covariance matrix with respect to the hyperparameters should also be computed to be able to evaluate the derivative of the log likelihood. Assuming $M$ is diagonal, there are $2+d$ number of hyperparameters namely $\sigma_w$, $\sigma_y$ and lengthscales for each dimension in the input space. This is why, $2+d$ different gradient equations should be derived so that the gradient-based optimizer can optimize different hyperparameters simultaneously. These different gradient equations of different hyperparameters differ only in their $\theta$-dependent terms. Only such term (occurring three times) in equation \ref{def_4.30} is $\frac{dK}{d\theta}$. Therefore, it suffices to find $\frac{dK}{\sigma_w}$, $\frac{dK}{\sigma_y}$ and gradients of $K$ with respect to each lengthscale, $\frac{dK}{\sigma_{l_i}}$, where $i$ denotes the order of the corresponding dimension for which the lengthscale to be tuned. 
+
+Although the hyperparameters are in fact $\sigma_w$, $\sigma_y$ and the lengthscales, taking derivatives with respect to them might result in finding hyperparameter configurations possibly involving negative valued terms when an unconstrained optimization method is employed like gradient-descent. A negative value does not make sense as a signal variance, a noise variance or a lengthscale value. In order to avoid negative hyperparameters, a proxy variable for each of them is introduced in such a way that $e$ to the power of the proxy variable would equate to its corresponding actual hyperparameter. The idea is formulated as follows.
+\begin{align*}
+\sigma_w = e^{px_w} ,\ \sigma_y = e^{px_y} ,\ \sigma_{l_i} = e^{px_{l_i}}
+\end{align*}
+Taking the derivative of matrix $K$ means taking the derivatives of the individual elements of the matrix $K$. Since the matrix elements are computed by the squared exponential kernel function and this kernel function has a term that is non-zero only when its inputs are identical, this term is effective only for the diagonal elements, First the the derivatives of the kernel function with respect to different hyperparameters as partial functions is written.
+\begin{align*}
+& \text{Writing the kernel function in terms of the proxy variables as a piecewise function; } \\
+& \qquad \qquad k(\pmb{x_p}, \pmb{x_q}) = \begin{cases} 
+      e^{2px_w} + e^{2px_y} & p = q \\
+      e^{2px_w} exp(-\frac{1}{2}(\pmb{x}_p-\pmb{x}_q)^{\top})D^{-2}(\pmb{x}_p-\pmb{x}_q) & p \neq q
+   \end{cases} \\
+   & \text{Note that the diagonal entries of the diagonal-matrix $D$ is} \{e^{px_{l_1}}, e^{px_{l_2}}, ...e^{px_{l_d}}\} \\
+   & \qquad \qquad \frac{dk(\pmb{x}_p, \pmb{x}_q)}{d(px_w)} = \begin{cases} 2e^{2px_w} & p = q \\ 
+   										2k(\pmb{x}_p, \pmb{x}_q) & p \neq q \end{cases} \numberthis \label{def_4.31} \\
+   & \qquad \qquad \frac{dk(\pmb{x}_p, \pmb{x}_q)}{d(px_y)} = \begin{cases} 2e^{2px_y} & p = q \\ 
+   										0 & p \neq q \end{cases} \numberthis \label{def_4.32} \\
+   & \qquad \qquad \frac{dk(\pmb{x}_p, \pmb{x}_q)}{d(px_{l_i})} = \begin{cases} 0 & p = q \\ 
+   										-2e^{-2px_{l_i}}(\pmb{x}_{p_i} - \pmb{x}_{q_i})^2k(\pmb{x}_p, \pmb{x}_q) & p \neq q \end{cases} \numberthis \label{def_4.33}
+\end{align*}
+Utilizing \ref{def_4.31}, \ref{def_4.32} and \ref{def_4.33}, the derivative of matrix K with respect to one of the hyperparameters can be easily calculated element-wise as the derivative of matrix K with respect to hyperparameter $\theta$ can be written as follows.
+\begin{flalign}
+\frac{dK}{d\theta} & = \begin{bmatrix}\frac{dk(\pmb{x}_1,\pmb{x}_1)}{d\theta}&\frac{dk(\pmb{x}_1,\pmb{x}_2)}{d\theta}&...&\frac{dk(\pmb{x}_1,\pmb{x}_n)}{d\theta}\\ \frac{dk(\pmb{x}_2,\pmb{x}_1)}{d\theta}&\frac{dk(\pmb{x}_2,\pmb{x}_2)}{d\theta}&...&\frac{dk(\pmb{x}_2,\pmb{x}_n)}{d\theta}\\...&...&...&...\\ \frac{dk(\pmb{x}_n,\pmb{x}_1)}{d\theta}&\frac{dk(\pmb{x}_2,\pmb{x}_n)}{d\theta}&...&\frac{dk(\pmb{x}_n,\pmb{x}_n)}{d\theta} \label{def_4.34} \end{bmatrix}
+\end{flalign}
+
+A very important consideration about the optimization task is its non-convexity. As pointed out in \citep[115]{rasmussen_gaussian_2005}, the optimization log likelihood over hyperparameter configurations poses a non-convex optimization problem. In order to deal with non-convexity, use of optimization schemes based on random-search and grid-search are advocated in\cite{bergstra_random_2012}.
+
+The choice for the hyperparameter optimization method heavily depends on the time-efficiency requirements of the online learning application. An exhaustive grid search method might find a better hyperparameter configuration than a gradient-based optimizer which gets stuck at the local optima. However, the grid search takes much more time as it has to scan a big portion\footnote{Big portion refers to a subset of the search-space where the viable parameters are assumed to lie within} of a potentially infinitely big search-space. This problem is aggravated with the growing number of input dimensions as it would require more lengthscale parameters to be tuned. In the next chapter, the choice of hyperparameter optimization method used for Gaussian Process regression is discussed from a more practical point of view.
+
+\subsection{Kernel Regression}
+
+Kernel Regression is a data-driven non-parametric regression method that is based on Kernel Density Estimation. In this section, before delving into the derivation of Kernel Regression prediction formula and its details, Kernel Density Estimation is briefly summarized.
+
+\subsubsection{Kernel Density Estimation}
+
+Suppose that we have a finite sample from an unknown distribution such as $\{\pmb{x}_1, \pmb{x}_2, ... \pmb{x}_n\}$. The aim of Kernel Density Estimation is to recover the probability density function of the unknown distribution by using the sample available. The most basic non-parametric way of estimating the probability density is building histograms. The histogram building is a very intuitive and simple technique based on defining bins that are uniformly spaced in the each direction of the space where the data points are defined and counting the number of samples that fall into the bins. The distribution of the number of data samples in the bins represent the frequency distribution of the sampled points. This is an approximation for the probability density of the distribution where the samples is drawn from. It is worth noting that the estimated probability density estimate can be seen as the collection of partial constant functions that returns the same value for all the points that fall into the same bin. The approximated density function can be written as follows.
+\begin{align*}
+m & = n\prod_{i=1}^d l_i \numberthis \label{def_4.35} \\
+\hat{f}(\pmb{x}) & = \frac{1}{nm} \sum_{i=1}^{n} \sum_{j=1}^m I(\pmb{x} \in b_j) I(\pmb{x_i} \in b_j) \numberthis \label{def_4.36}
+\end{align*}
+In \ref{def_4.35}, $l_i$ specifies the spacing in the $i_{th}$ dimension of the space where the data points are defined in and $m$ is the number of bins defined in this space. In \ref{def_4.36}, $\pmb{x}$ is the data point for which the probability density is to be estimated. Moreover, $\pmb{x}_i$ is the $i_{th}$ sample in the sample set. Finally, $b_j$ denotes the $j_{th}$ bin and the function $I$ returns $1$ if the condition specified within its parenthesis space holds and $0$ otherwise. The right hand side of the equation \ref{def_4.36} simply counts the number of the data points in the sample that fall in the same bin as the data point for which the density is estimated and divides this number by the number of bins multiplied by the number of items.
+
+The problem with estimating the probability density of a given data point by \ref{def_4.36} is that, as mentioned earlier, it returns the same density estimation for the neighboring data points. In a naive attempt to solve this problem, one might try shrinking the bin size by decreasing the spacing parameters $i$'s. However, as the bins get smaller, the chances for the data point for which a kernel density estimation to be made to be in the same bin as the ones in the sampled set decreases. This means no matter how a data point is close to the sampled data points (if not identical), the density for it will be predicted as zero implying the contribution to the estimated density of both far and close data points both same and zero. Therefore, it can be argued that the density estimation with smaller bins do not produce desirable results.
+
+A good solution to the problem with density estimation by histogram is using \textit{overlapping} bins. Differently from the bins used for histogram building, this time every data point in the sample has its own bin. Moreover, an interesting feature of these bins is that their \textit{containment effect} fades when moved away from their corresponding data point and it peaks at the data points for which the bins are defined. Containment can be easily understood if one imagines the $I$ functions appear in \ref{def_4.35} returning containment of either $0$ or $1$ for a pair of data points. Differently from the density estimation by histograms, in the kernel-based density estimation, whenever a density estimate should be computed for a data point, containment of it by different bins of the data points in the sample which can be floating values between $0$ and $1$ are added up. The containment by the different data points in the sample can be seen as the contribution of them to the density estimate for the data point that the distribution density to be estimated. This way, for the points with no matching identical data-point in the sample, still a density estimate other than $0$ could be calculated. The mentioned \textit{fading} effect is modeled by what is called the \textit{kernel}. The kernel is a function of $(\pmb{x}_i-\pmb{x})H^{-1}$ where $\pmb{x}_i$ is the sampled data point, \pmb{x} is the point for which the density is computed and $H$ is the lengthscale matrix which is explained later. The contribution to the density estimate by a single bin to the all possible different points should sum up to unity. In other words, the kernel function should satisfy the following constraint.
+\begin{align*}
+\int_{-\infty}^{\infty} k((\pmb{x}_i-\pmb{x})H^{-1})d\pmb{x} = 1
+\end{align*}
+Since, there are $n$ points in the training set (case base), calculating the kernel density as the summation of the contributions by the \textit{bins} of $n$ data points potentially result in a bigger density estimate than what would be calculated by the unknown probability density function. This becomes clear, if we write the following by manipulating the above constraint.
+\begin{align*}
+\int_{-\infty}^{\infty} \sum_{i=1}^{n} k((\pmb{x}_i-\pmb{x})H^{-1})d\pmb{x} = n|H|
+\end{align*}
+In order to have a \textit{sane} approximate probability function whose integral from negative infinity to positive infinity, a normalizing constant which is exactly $\frac{1}{n|H|}$ is put in front of the kernel density estimation formula which is shown below.
+\begin{flalign}
+\hat{f}(\pmb{x}) = \frac{1}{n|H|} \sum_{i=1}^n k((\pmb{x}_i-\pmb{x})H^{-1}) \label{def_4.37}
+\end{flalign}
+Above, $H$ is a $d$-by-$d$ nonsingular bandwidth matrix and its diagonal entries correspond to lengthscales of each dimension in the $d$-dimensional space where the data points are defined. Very similarly to the lengthscales used in the Squared Exponential function used in Gaussian Process Regression, lengthscales in the Kernel Regression context also are used to normalize the values of the data points in different dimensions with different variance. The reason why the lengthscales are needed and what happens when they are not used or not optimized is discussed in the next subsection.
+
+A widely used kernel function is Gaussian kernel and it is based on the probability density function of Gaussian distribution.
+\begin{flalign}
+k_H(\pmb{x}_i-\pmb{x}) = \frac{1}{(2\pi)^{\frac{d}{2}}} exp((\pmb{x}_i-\pmb{x})^{\top}(\pmb{x}_i-\pmb{x})) \label{def_4.38}
+\end{flalign}
+Plugging \ref{def_4.38} into \ref{def_4.37}, the formula for kernel density estimation using Gaussian kernel is obtained.
+\begin{flalign}
+\hat{f}(\pmb{x}) = \sum_{i=1}^n \frac{1}{n|H|(2\pi)^{\frac{d}{2}}} exp(((\pmb{x}_i-\pmb{x})H^{-1})^{\top}((\pmb{x}_i-\pmb{x})H^{-1}))
+\end{flalign}
+
+Next, how the kernel density estimate for regression can be used is discussed.
+
+\subsubsection{Nadaraya-Watson Estimator}
+
+Most common way of making predictions given datapoints by using Kernel Density Estimation is employing Nadaraya-Watson Estimator. The prediction formula of Nadaraya-Watson is derived from the definition of conditional expectation as presented in \citep[p. 89]{hardle_nonparametric_2012}:
+\begin{flalign}
+E(y| X = \pmb{x}) & = \int_{-\infty}^{\infty} p(y|\pmb{x})ydy = \frac{\int_{-\infty}^{\infty} p(y,\pmb{x}) y dy}{p(\pmb{x})} \label{def_4.40}
+\end{flalign}
+Above, $p(y,\pmb{x})$ and $p(\pmb{x})$ are unknown. Instead, the kernel density estimate functions can be used. Writing the kernel density estimate for $\pmb{x}$ is easy. That of $(y,\pmb{x})$ is a bit tricky. \citep[p. 89]{hardle_nonparametric_2012} suggests using the what is known as \textit{product kernel} which is defined for two different random variables that have the same number of samples in the sample set. The product kernel for $(y,\pmb{x})$ is written as follows.
+\begin{flalign}
+\hat{f}(\pmb{x},y) = \frac{1}{n|H_1|H_2} \sum_{i=1}^n k((\pmb{x}_i-\pmb{x})H_1^{-1}) k(\frac{y_i-y}{H_2}) \label{def_4.41}
+\end{flalign}
+Plugging the density estimates for the unknown probability functions in \ref{def_4.40}, we have the following.
+\begin{align*}
+\frac{\int_{-\infty}^{\infty} p(y,\pmb{x}) y dy}{p(\pmb{x})} & = \frac{\frac{1}{n} \sum_{i=1}^n \int_{-\infty}^{\infty} \frac{1}{|H_1|} k((\pmb{x}_i-\pmb{x})H_1^{-1}) \frac{1}{H_2} k(\frac{y_i-y}{H_2}) y dy}{\frac{1}{n|H1|} \sum_{i=1}^n k((\pmb{x}_i-\pmb{x})H_1^{-1})} \\
+& = \frac{\sum_{i=1}^n k((\pmb{x}_i-\pmb{x})H_1^{-1}) \int_{-\infty}^{\infty} \frac{1}{H_2} k(\frac{y_i-y}{H_2}) y dy}{\sum_{i=1}^n k((\pmb{x}_i-\pmb{x})H_1^{-1})} \\
+& = \frac{ \sum_{i=1}^n k((\pmb{x}_i-\pmb{x})H_1^{-1}) \int_{-\infty}^{\infty} (y_i-H_2s) k(-s) ds}{ \sum_{i=1}^n k((\pmb{x}_i-\pmb{x})H_1^{-1})} \ (s = \frac{y-y_i}{H_2},\ ds = \frac{dy}{H_2}) \\
+& \text{ (knowing that } \int_{-\infty}^{\infty} sk(-s) ds = 0 \text{ and } \int_{-\infty}^{\infty} k_{H_2}(s) ds = 1 ) \\
+& = \frac{ \sum_{i=1}^n k((\pmb{x}_i-\pmb{x})H_1^{-1}) y_i}{ \sum_{i=1}^n k((\pmb{x}_i-\pmb{x})H_1^{-1})} \numberthis \label{def_4.42}
+\end{align*}
+Finally, the prediction formula used by the Nadarya-Watson estimator is derived in \ref{def_4.42}
+
+\subsubsection{Prediction Bounds Estimation}
+
+Both \citep[pp 35-36]{yatchew_semiparametric_2003} and \citep[p. 119]{hardle_nonparametric_2012} provide a way to calculate the confidence intervals for the predictions made by the Nadarya-Watson estimator. The variance is calculated as follows.
+\begin{flalign}
+Var[\hat{y}|\pmb{x}] = \frac{||K||_2^2 ASE}{\hat{f}(\pmb{x})} \label{def_4.43}
+\end{flalign}
+In above formula, ASE denotes the average squared error and $\hat{f}(\pmb{x})$ is the kernel density estimate for the data point, \pmb{x}, which the prediction is made for. As for $||K||_2^2$, it depends on the kernel function choice and it is calculated by $\int_{-\infty}^{\infty} k(\pmb{x})^2d\pmb{x}$. For the Gaussian Kernel, this calculation yields $(4\pi)^{\frac{-d}{2}}$.
+
+Once the prediction variance is known, the prediction bounds could be found straightforwardly for a desired confidence level as discussed in the section where Gaussian Process Regression is covered.
+
+\subsubsection{Optimizing Hyperparameters}
+\label{subsubsection:kreg_tuning_approach}
+
+Only hyperparameter to be tuned is the lengthscale matrix, $H$. Without using lengthscales explicitly (equivalent of using an identity matrix for $H$) or bad choices for lengthscales, the kernel values computed by the kernel function can be always too high or too low no matter for what pair of data points the kernel is being calculated rendering the whole kernel density estimation idea useless. This results in inaccurate predictions for targets given the datapoints by kernel regression. Therefore, lengthscales are crucial to adapt the kernel function to the distribution of the values in the input dimensions. 
+
+Unlike the Gaussian Process Regression, there is no derivable loss function for Kernel Regression. Therefore, instead of turning the hyperparameter tuning problem into an optimization problem, validation techniques are typically used to find near-optimal values for the entries of $H$. It is assumed that an optimal $H$ matrix would be the one that minimizes the empirical error. In order to calculate the empirical error, an error measure should be chosen among various options such as MSE, ISE, MISE, ASE and MASE. In \cite[p. 110]{hardle_nonparametric_2012}, ASE is chosen for the same purpose and in \cite{hardle_optimal_1985} it is stated that ASE, ISE and MISE asymptotically lead to the same choices of length-scales\footnote{The authors adopted the term smoothing as different choices of lengthscales result in different levels of smoothness of the line that connects the predictions of the all possible input points} choice when employed in a validation scheme to tune the lengthscales for Nadarya-Watson Estimator. Therefore, as the error measure, ASE is preferred.
+
+Having chosen the error measure, The aim of the hyperparameter tuning can be now explicitly stated as finding the matrix $H$ that minimizes the ASE error defined as follows
+\begin{align*}
+ASE(H)=\frac{1}{n}\sum_{i=1}^{n}(\hat{y}_i - y_i)^2
+\end{align*}
+The problem with trying to minimize the above equation is that $y_i$ itself is used for computing $\hat{y}_i$. Therefore, making the lengthscales infinitely small would make ASE equal to $0$ as the only point used in calculating the prediction $\hat{y_i}$ would be $y_i$. This, of course, is not a good validation strategy. In order to solve this problem, the use of hold-out-one estimator is proposed in \citep[pp. 112-113]{hardle_nonparametric_2012}. The idea is, when calculating the error, the predictions for the target is made without using the target point that is in the training set (case base). Hold-out-one Nadarya-Watson estimator is formulated as follows.
+\begin{align*}
+\hat{f}(\pmb{x}_i)_{-i} = \frac{\sum_{i\neq j} k((\pmb{x_i}-\pmb{x_j})H^{-1})y_j}{\sum_{i\neq j} k((\pmb{x_i}-\pmb{x_j})H^{-1})}
+\end{align*}
+Using this estimator cross-validation error can be estimated using the following formula:
+\begin{align*}
+CV(H) = \frac{1}{n}\sum_{i=1}^{n}(\hat{f}(\pmb{x}_i)_{-i} - y_i)^2
+\end{align*}
+The $H$ that minimizes $CV(H)$ is the optimum choice for the lengthscale matrix. In the absence of the derivative of the $CV(H)$ with respect to $H$, a better idea than a random search for the optimal $H$ is suggested in \cite[p. 175]{silverman_density_1986}. The author argues that the optimal values of the lengthscales which are essentially used to normalize the values of the inputs in different dimensions of the input space could be inferred from the data itself and suggests that the lengthscales matrix should be in the same \textit{shape} as the data. Therefore, it is estimated that the optimal lengthscale matrix $H$ should be a multiple of the variance-covariance matrix of the data that could be calculated as follows.
+\begin{align*}
+COV = \frac{(X^{\top}-\frac{11^{\top}X^{\top}}{n})^{\top}(X^{\top}-\frac{11^{\top}X^{\top}}{n})}{n}
+\end{align*}
+Above, $1$ is a column vector with $n$ $1$s and $X$ is the $n$-by-$d$ design matrix.
+
+After finding the variance-covariance matrix of the data points available, the hyperparameter tuning problem for Kernel Regression can be formulated as follows:
+\begin{align*}
+& \text{for a predefined $\alpha_{min}$, $\alpha_{max}$ and $\alpha_{step}$} \\
+& \text{find: } argmin_{\alpha} CV(\alpha COV)
+\end{align*}
+Above defined problem can be trivially solved by scanning different values of $\alpha$ by starting from $\alpha_{min}$ and incrementing it by $\alpha_{step}$ at each step until $\alpha_{max}$ is reached and picking the $\alpha$ that makes $CV(\alpha COV)$ the smallest $CV$ calculated. This way, the nearly-optimal choice for $H$ is found to be $\alpha COV$.
